@@ -106,11 +106,6 @@ npm run lint
 - **pdfjs-dist 5.4** - PDF Rendering und Text-Extraktion
 - **epubjs 0.3** - ePub Parsing und Rendering
 
-### Testing
-- **Vitest 4.0** - Unit Testing Framework
-- **Testing Library** - React Component Testing
-- **jsdom** - DOM Testing Umgebung
-
 ## Projektstruktur
 
 ```
@@ -151,17 +146,9 @@ lese_maze/
    - `←/→` - Geschwindigkeit anpassen
    - `Esc` - Reader schließen
 
-## Lizenz
-
-[Lizenz hier einfügen]
-
-## Mitwirken
-
-Contributions sind willkommen! Bitte erstelle einen Pull Request oder öffne ein Issue für Verbesserungsvorschläge.
-
 ## Autor
 
-[Dein Name hier einfügen]
+Maze
 
 ---
 
