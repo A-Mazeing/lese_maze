@@ -1,0 +1,101 @@
+{
+  "../../../../@crx/manifest": {
+    "file": "assets/crx-manifest.js-BmvSFpBI.js",
+    "name": "crx-manifest.js",
+    "src": "../../../../@crx/manifest",
+    "isEntry": true
+  },
+  "_Reader-Blnlohv9.js": {
+    "file": "assets/Reader-Blnlohv9.js",
+    "name": "Reader",
+    "imports": [
+      "_ThemeContext-D0v0ecQa.js",
+      "_pdf-worker-CPlW4DkC.js",
+      "_epub--x6Qq_uX.js",
+      "_react-vendor-CTRnUdJL.js"
+    ],
+    "assets": [
+      "assets/pdf.worker.min-LyOxJPrg.mjs"
+    ]
+  },
+  "_ThemeContext-Bh2CQ3K8.css": {
+    "file": "assets/ThemeContext-Bh2CQ3K8.css",
+    "src": "_ThemeContext-Bh2CQ3K8.css"
+  },
+  "_ThemeContext-D0v0ecQa.js": {
+    "file": "assets/ThemeContext-D0v0ecQa.js",
+    "name": "ThemeContext",
+    "imports": [
+      "_epub--x6Qq_uX.js",
+      "_react-vendor-CTRnUdJL.js"
+    ],
+    "css": [
+      "assets/ThemeContext-Bh2CQ3K8.css"
+    ]
+  },
+  "_epub--x6Qq_uX.js": {
+    "file": "assets/epub--x6Qq_uX.js",
+    "name": "epub"
+  },
+  "_pdf-worker-CPlW4DkC.js": {
+    "file": "assets/pdf-worker-CPlW4DkC.js",
+    "name": "pdf-worker"
+  },
+  "_react-vendor-CTRnUdJL.js": {
+    "file": "assets/react-vendor-CTRnUdJL.js",
+    "name": "react-vendor"
+  },
+  "index.html": {
+    "file": "assets/main-D5RkHSOo.js",
+    "name": "main",
+    "src": "index.html",
+    "isEntry": true,
+    "imports": [
+      "_ThemeContext-D0v0ecQa.js",
+      "_Reader-Blnlohv9.js",
+      "_epub--x6Qq_uX.js",
+      "_react-vendor-CTRnUdJL.js",
+      "_pdf-worker-CPlW4DkC.js"
+    ]
+  },
+  "node_modules/pdfjs-dist/build/pdf.worker.min.mjs": {
+    "file": "assets/pdf.worker.min-LyOxJPrg.mjs",
+    "src": "node_modules/pdfjs-dist/build/pdf.worker.min.mjs"
+  },
+  "src/background/service-worker.ts": {
+    "file": "assets/service-worker.ts-C0_1jK2Z.js",
+    "name": "service-worker.ts",
+    "src": "src/background/service-worker.ts",
+    "isEntry": true
+  },
+  "src/content/content.ts": {
+    "file": "assets/content.ts-BDsa_sUz.js",
+    "name": "content.ts",
+    "src": "src/content/content.ts",
+    "isEntry": true
+  },
+  "src/popup/index.html": {
+    "file": "assets/popup-CwqOp362.js",
+    "name": "popup",
+    "src": "src/popup/index.html",
+    "isEntry": true,
+    "imports": [
+      "_ThemeContext-D0v0ecQa.js",
+      "_epub--x6Qq_uX.js",
+      "_react-vendor-CTRnUdJL.js"
+    ]
+  },
+  "src/reader/index.html": {
+    "file": "assets/reader-BvabLCSa.js",
+    "name": "reader",
+    "src": "src/reader/index.html",
+    "isEntry": true,
+    "imports": [
+      "_ThemeContext-D0v0ecQa.js",
+      "_Reader-Blnlohv9.js",
+      "_epub--x6Qq_uX.js",
+      "_react-vendor-CTRnUdJL.js",
+      "_pdf-worker-CPlW4DkC.js"
+    ]
+  }
+}
