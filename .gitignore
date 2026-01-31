@@ -11,7 +11,7 @@ lerna-debug.log*
 node_modules
 
 # Build outputs
-dist
+# dist  # Auskommentiert, damit die gebaute Extension direkt heruntergeladen werden kann
 dist-ssr
 *.local
 
