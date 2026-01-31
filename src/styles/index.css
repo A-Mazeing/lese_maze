@@ -92,7 +92,8 @@ kbd {
   font-size: 0.875em;
 }
 
-/* PDF Text Layer Styling */
+/* PDF Text Layer Styling - Compatible with PDF.js 4.x/5.x */
+/* Optimiert für präzise Textausrichtung und smooth Selection */
 .text-layer {
   position: absolute;
   left: 0;
@@ -102,22 +103,75 @@ kbd {
   overflow: hidden;
   line-height: 1.0;
   pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  z-index: 2;
+  /* Performance-Optimierungen für smooth Rendering */
+  will-change: contents;
+  contain: layout style;
 }
 
+/* PDF.js 4.x/5.x creates nested spans (markedContent > span), so use descendant selector */
+.text-layer span {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  pointer-events: auto;
+  user-select: text;
+  /* Verhindere Subpixel-Verschiebungen die zu Doppelmarkierungen führen */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* Smooth Transform für bessere Ausrichtung */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Also target direct children for backwards compatibility */
 .text-layer > span {
   color: transparent;
   position: absolute;
   white-space: pre;
   cursor: text;
   transform-origin: 0% 0%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
+/* Selection highlighting - covers all nested levels */
+/* Verbesserte Sichtbarkeit und konsistentes Verhalten */
+.text-layer span::selection,
 .text-layer > span::selection {
-  background: rgba(59, 130, 246, 0.3);
+  background: rgba(59, 130, 246, 0.5);
+  color: transparent;
+  /* Verhindere Flackern während Selektion */
+  -webkit-background-clip: text;
 }
 
+.text-layer span::-moz-selection,
 .text-layer > span::-moz-selection {
-  background: rgba(59, 130, 246, 0.3);
+  background: rgba(59, 130, 246, 0.5);
+  color: transparent;
+}
+
+/* Ensure markedContent spans are also selectable */
+.text-layer .markedContent {
+  position: absolute;
+  pointer-events: auto;
+  user-select: text;
+}
+
+/* Verbesserte Highlight-Sichtbarkeit im Dark Mode */
+.dark .text-layer span::selection,
+.dark .text-layer > span::selection {
+  background: rgba(96, 165, 250, 0.6);
+}
+
+.dark .text-layer span::-moz-selection,
+.dark .text-layer > span::-moz-selection {
+  background: rgba(96, 165, 250, 0.6);
 }
 
 /* PDF Canvas Container */

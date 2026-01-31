@@ -17,6 +17,62 @@ export interface PageRenderResult {
 }
 
 /**
+ * Prüft robust, ob eine aktive Text-Selektion im gegebenen Container existiert.
+ * Berücksichtigt sowohl anchorNode als auch focusNode der Selektion.
+ */
+function hasActiveSelectionInContainer(container: HTMLElement | null): boolean {
+  if (!container) return false;
+  
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed) return false;
+  
+  const selectedText = selection.toString().trim();
+  if (!selectedText) return false;
+  
+  // Prüfe ob anchorNode ODER focusNode im Container sind
+  const anchorNode = selection.anchorNode;
+  const focusNode = selection.focusNode;
+  
+  const anchorInContainer = anchorNode ? container.contains(anchorNode) : false;
+  const focusInContainer = focusNode ? container.contains(focusNode) : false;
+  
+  return anchorInContainer || focusInContainer;
+}
+
+/**
+ * Speichert den aktuellen Selektionszustand für spätere Wiederherstellung.
+ */
+interface SavedSelection {
+  text: string;
+  startOffset: number;
+  endOffset: number;
+}
+
+function saveCurrentSelection(container: HTMLElement | null): SavedSelection | null {
+  if (!container || !hasActiveSelectionInContainer(container)) return null;
+  
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return null;
+  
+  try {
+    const range = selection.getRangeAt(0);
+    
+    // Berechne relative Position im Container
+    const preRange = document.createRange();
+    preRange.selectNodeContents(container);
+    preRange.setEnd(range.startContainer, range.startOffset);
+    
+    return {
+      text: selection.toString(),
+      startOffset: preRange.toString().length,
+      endOffset: preRange.toString().length + selection.toString().length
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Hook für PDF-Viewer Funktionalität.
  * Verwaltet Rendering, Navigation und Zoom.
  */
@@ -33,8 +89,16 @@ export function usePDFViewer() {
   });
 
   const currentRenderTask = useRef<{ cancel: () => void } | null>(null);
+  const currentTextLayerTask = useRef<{ cancel: () => void; render: () => Promise<void> } | null>(null);
+  const lastRenderedPage = useRef<number>(0);
+  const lastRenderedScale = useRef<number>(0);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const textLayerRef = useRef<HTMLDivElement | null>(null);
+  
+  // Debounce-Refs für Text-Layer Updates
+  const textLayerDebounceRef = useRef<number | null>(null);
+  const pendingTextLayerUpdate = useRef<boolean>(false);
+  const isRenderingTextLayer = useRef<boolean>(false);
 
   // Aktualisiere totalPages wenn sich metadata ändert
   useEffect(() => {
@@ -77,11 +141,22 @@ export function usePDFViewer() {
       return null;
     }
 
+    // Prüfe ob wir diese Seite bereits mit diesem Scale gerendert haben
+    const needsRerender = pageNum !== lastRenderedPage.current || 
+                          viewerState.scale !== lastRenderedScale.current;
+    
+    if (!needsRerender && canvas.width > 0) {
+      // Seite ist bereits korrekt gerendert
+      return null;
+    }
+
     // Abbrechen des vorherigen Render-Tasks
     if (currentRenderTask.current) {
       currentRenderTask.current.cancel();
       currentRenderTask.current = null;
     }
+
+    // Text-Layer-Task wird später bei Bedarf abgebrochen (nicht hier, um Selektion zu erhalten)
 
     setViewerState(prev => ({ ...prev, isLoading: true, error: null }));
 
@@ -114,21 +189,95 @@ export function usePDFViewer() {
 
       await renderTask.promise;
 
-      // Text-Layer rendern (für Selektion)
+      // Speichere gerenderte Seite/Scale
+      lastRenderedPage.current = pageNum;
+      lastRenderedScale.current = viewerState.scale;
+
+      // Text-Layer rendern (für Selektion) - mit robuster Selektionsprüfung
       if (textLayerDiv) {
-        textLayerDiv.innerHTML = '';
-        textLayerDiv.style.width = `${viewport.width}px`;
-        textLayerDiv.style.height = `${viewport.height}px`;
-
-        const textContent = await page.getTextContent();
+        // Prüfe mit der robusten Funktion ob eine aktive Selektion im Text-Layer existiert
+        const hasActiveSelection = hasActiveSelectionInContainer(textLayerDiv);
         
-        const textLayer = new TextLayer({
-          textContentSource: textContent,
-          container: textLayerDiv,
-          viewport: viewport,
-        });
+        // Speichere Selektion für potenzielle Wiederherstellung
+        const savedSelection = saveCurrentSelection(textLayerDiv);
+        
+        // Verhindere Re-Rendering während aktiver Selektion
+        if (hasActiveSelection && !pendingTextLayerUpdate.current) {
+          // Markiere dass ein Update aussteht
+          pendingTextLayerUpdate.current = true;
+          
+          // Debounce: Warte bis Selektion beendet wird
+          if (textLayerDebounceRef.current) {
+            clearTimeout(textLayerDebounceRef.current);
+          }
+          
+          textLayerDebounceRef.current = window.setTimeout(() => {
+            pendingTextLayerUpdate.current = false;
+            // Trigger Re-Render durch State-Update
+            setViewerState(prev => ({ ...prev }));
+          }, 500);
+          
+          // Update nur Dimensionen, nicht Inhalt
+          textLayerDiv.style.width = `${viewport.width}px`;
+          textLayerDiv.style.height = `${viewport.height}px`;
+        } else if (!isRenderingTextLayer.current) {
+          // Kein aktive Selektion - sicheres Re-Rendering
+          isRenderingTextLayer.current = true;
+          
+          // Abbrechen des vorherigen Text-Layer-Tasks falls noch aktiv
+          const prevTask = currentTextLayerTask.current;
+          if (prevTask) {
+            prevTask.cancel();
+            currentTextLayerTask.current = null;
+          }
+          
+          try {
+            textLayerDiv.style.width = `${viewport.width}px`;
+            textLayerDiv.style.height = `${viewport.height}px`;
 
-        await textLayer.render();
+            const textContent = await page.getTextContent();
+            
+            // Finale Prüfung vor dem Leeren - Selektion könnte während getTextContent gestartet worden sein
+            if (!hasActiveSelectionInContainer(textLayerDiv)) {
+              textLayerDiv.innerHTML = '';
+              
+              const textLayer = new TextLayer({
+                textContentSource: textContent,
+                container: textLayerDiv,
+                viewport: viewport,
+              });
+
+              currentTextLayerTask.current = textLayer;
+              await textLayer.render();
+              
+              // Versuche Selektion wiederherzustellen falls gespeichert
+              if (savedSelection && savedSelection.text.length > 0) {
+                // Warte kurz bis DOM aktualisiert ist
+                requestAnimationFrame(() => {
+                  try {
+                    const textNodes = textLayerDiv.querySelectorAll('span');
+                    // Einfache Wiederherstellung: Suche nach dem gespeicherten Text
+                    for (const node of textNodes) {
+                      if (node.textContent?.includes(savedSelection.text.substring(0, 20))) {
+                        const range = document.createRange();
+                        const sel = window.getSelection();
+                        range.selectNodeContents(node);
+                        sel?.removeAllRanges();
+                        sel?.addRange(range);
+                        break;
+                      }
+                    }
+                  } catch {
+                    // Selektion konnte nicht wiederhergestellt werden - nicht kritisch
+                  }
+                });
+              }
+            }
+          } finally {
+            isRenderingTextLayer.current = false;
+            pendingTextLayerUpdate.current = false;
+          }
+        }
       }
 
       setViewerState(prev => ({ 

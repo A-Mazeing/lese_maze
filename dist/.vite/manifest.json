@@ -5,11 +5,11 @@
     "src": "../../../../@crx/manifest",
     "isEntry": true
   },
-  "_Reader-BJE6sGym.js": {
-    "file": "assets/Reader-BJE6sGym.js",
+  "_Reader-Dz-BuFiL.js": {
+    "file": "assets/Reader-Dz-BuFiL.js",
     "name": "Reader",
     "imports": [
-      "_ThemeContext-D0v0ecQa.js",
+      "_ThemeContext-B5sqjYKv.js",
       "_pdf-worker-CPlW4DkC.js",
       "_epub--x6Qq_uX.js",
       "_react-vendor-CTRnUdJL.js"
@@ -18,20 +18,20 @@
       "assets/pdf.worker.min-LyOxJPrg.mjs"
     ]
   },
-  "_ThemeContext-Bh2CQ3K8.css": {
-    "file": "assets/ThemeContext-Bh2CQ3K8.css",
-    "src": "_ThemeContext-Bh2CQ3K8.css"
-  },
-  "_ThemeContext-D0v0ecQa.js": {
-    "file": "assets/ThemeContext-D0v0ecQa.js",
+  "_ThemeContext-B5sqjYKv.js": {
+    "file": "assets/ThemeContext-B5sqjYKv.js",
     "name": "ThemeContext",
     "imports": [
       "_epub--x6Qq_uX.js",
       "_react-vendor-CTRnUdJL.js"
     ],
     "css": [
-      "assets/ThemeContext-Bh2CQ3K8.css"
+      "assets/ThemeContext-CbiziD8c.css"
     ]
+  },
+  "_ThemeContext-CbiziD8c.css": {
+    "file": "assets/ThemeContext-CbiziD8c.css",
+    "src": "_ThemeContext-CbiziD8c.css"
   },
   "_epub--x6Qq_uX.js": {
     "file": "assets/epub--x6Qq_uX.js",
@@ -46,13 +46,13 @@
     "name": "react-vendor"
   },
   "index.html": {
-    "file": "assets/main-DZB60LS6.js",
+    "file": "assets/main-Cn3PTxN5.js",
     "name": "main",
     "src": "index.html",
     "isEntry": true,
     "imports": [
-      "_ThemeContext-D0v0ecQa.js",
-      "_Reader-BJE6sGym.js",
+      "_ThemeContext-B5sqjYKv.js",
+      "_Reader-Dz-BuFiL.js",
       "_epub--x6Qq_uX.js",
       "_react-vendor-CTRnUdJL.js",
       "_pdf-worker-CPlW4DkC.js"
@@ -75,24 +75,24 @@
     "isEntry": true
   },
   "src/popup/index.html": {
-    "file": "assets/popup-CWnD4v_1.js",
+    "file": "assets/popup-D9O_LSd9.js",
     "name": "popup",
     "src": "src/popup/index.html",
     "isEntry": true,
     "imports": [
-      "_ThemeContext-D0v0ecQa.js",
+      "_ThemeContext-B5sqjYKv.js",
       "_epub--x6Qq_uX.js",
       "_react-vendor-CTRnUdJL.js"
     ]
   },
   "src/reader/index.html": {
-    "file": "assets/reader-DU_HnXX8.js",
+    "file": "assets/reader-BVV4iPaM.js",
     "name": "reader",
     "src": "src/reader/index.html",
     "isEntry": true,
     "imports": [
-      "_ThemeContext-D0v0ecQa.js",
-      "_Reader-BJE6sGym.js",
+      "_ThemeContext-B5sqjYKv.js",
+      "_Reader-Dz-BuFiL.js",
       "_epub--x6Qq_uX.js",
       "_react-vendor-CTRnUdJL.js",
       "_pdf-worker-CPlW4DkC.js"

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useReader } from '@/contexts/ReaderContext';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -86,6 +86,20 @@ export function Reader() {
     const isPreviewMode = newMode === 'split' || newMode === 'pdfSplit';
     dispatch({ type: 'SET_PREVIEW_MODE', payload: isPreviewMode });
   };
+
+  // Handler for starting RSVP reading from PDF selection
+  const handleStartReadingFromPDF = useCallback((range?: { start: number; end: number }) => {
+    if (range) {
+      // Range is already set by PDFViewer, just switch to RSVP view
+      dispatch({ type: 'SET_READING_RANGE', payload: { startIndex: range.start, endIndex: range.end } });
+      dispatch({ type: 'SET_INDEX', payload: range.start });
+    }
+    // Switch to RSVP full view
+    setViewMode('rsvp');
+    dispatch({ type: 'SET_PREVIEW_MODE', payload: false });
+    // Start playback
+    dispatch({ type: 'PLAY' });
+  }, [dispatch]);
 
   return (
     <div className={`min-h-screen ${resolvedTheme === 'dark' ? 'dark' : ''}`}>
@@ -352,7 +366,11 @@ export function Reader() {
                 <div className="flex-1 flex min-h-0 overflow-hidden">
                   {/* Left: PDF Viewer */}
                   <div className="w-1/2 border-r border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <PDFViewer className="h-full" autoSync={true} />
+                    <PDFViewer 
+                      className="h-full" 
+                      autoSync={true} 
+                      onStartReading={handleStartReadingFromPDF}
+                    />
                   </div>
 
                   {/* Right: RSVP */}
