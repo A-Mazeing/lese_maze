@@ -1,22 +1,41 @@
 import { useRSVP } from '@/hooks/useRSVP';
-import { formatProgress, estimateReadingTime } from '@/utils/textProcessor';
+import { estimateReadingTime } from '@/utils/textProcessor';
 
 /**
  * Progress Bar Komponente mit Fortschrittsanzeige.
+ * 
+ * Zeigt den Fortschritt innerhalb des aktuellen Lesebereichs an.
+ * Wenn ein Lesebereich (startIndex/endIndex) gesetzt ist, werden
+ * alle Anzeigen relativ zu diesem Bereich berechnet.
  */
 export function ProgressBar() {
-  const { currentIndex, totalWords, progress, wpm, setIndex } = useRSVP();
+  const { 
+    progress, 
+    wpm, 
+    setIndex,
+    startIndex,
+    totalWordsInRange,
+    positionInRange,
+  } = useRSVP();
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const percentage = x / rect.width;
-    const newIndex = Math.floor(percentage * totalWords);
+    // Berechne den absoluten Index innerhalb des Lesebereichs
+    const relativeIndex = Math.floor(percentage * totalWordsInRange);
+    const newIndex = startIndex + relativeIndex;
     setIndex(newIndex);
   };
 
-  const remainingWords = totalWords - currentIndex;
+  // Verbleibende Wörter im Lesebereich
+  const remainingWords = totalWordsInRange - positionInRange;
   const remainingTime = estimateReadingTime(remainingWords, wpm);
+
+  // Prozentanzeige basierend auf dem Lesebereich
+  const progressPercent = totalWordsInRange > 0 
+    ? Math.round((positionInRange / totalWordsInRange) * 100) 
+    : 0;
 
   return (
     <div className="w-full max-w-2xl">
@@ -38,10 +57,10 @@ export function ProgressBar() {
       {/* Info Row */}
       <div className="flex justify-between mt-2 text-sm text-gray-600 dark:text-gray-400">
         <span>
-          Wort {currentIndex + 1} von {totalWords}
+          Wort {positionInRange} von {totalWordsInRange}
         </span>
         <span className="font-medium">
-          {formatProgress(currentIndex, totalWords)}
+          {progressPercent}%
         </span>
         <span>
           Verbleibend: {remainingTime}

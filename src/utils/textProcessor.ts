@@ -51,7 +51,7 @@ export interface TextStructure {
  * - Absätze werden durch doppelte Zeilenumbrüche getrennt (\n\n, \r\n\r\n)
  */
 export function tokenizeTextWithStructure(text: string): TextStructure {
-  if (!text || typeof text !== 'string') {
+  if (!text) {
     return {
       words: [],
       sentenceBreaks: [],
@@ -134,7 +134,7 @@ export function tokenizeTextWithStructure(text: string): TextStructure {
  * Entfernt leere Strings und normalisiert Whitespace.
  */
 export function tokenizeText(text: string): string[] {
-  if (!text || typeof text !== 'string') {
+  if (!text) {
     return [];
   }
   
@@ -149,13 +149,16 @@ export function tokenizeText(text: string): string[] {
 /**
  * Bereinigt Text von unerwünschten Zeichen,
  * behält aber Satzzeichen für natürliche Pausen.
+ * WICHTIG: Behält Zeilenumbrüche für Absatzerkennung!
  */
 export function cleanText(text: string): string {
   return text
-    // Entferne mehrfache Leerzeichen/Zeilenumbrüche
-    .replace(/\s+/g, ' ')
-    // Entferne Steuerzeichen
-    .replace(/[\x00-\x1F\x7F]/g, '')
+    // Normalisiere mehrfache Leerzeichen (aber behalte Zeilenumbrüche)
+    .replace(/[^\S\n]+/g, ' ')
+    // Normalisiere mehrfache Zeilenumbrüche zu maximal 2
+    .replace(/\n{3,}/g, '\n\n')
+    // Entferne Steuerzeichen (außer \n und \r)
+    .replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F]/g, '')
     // Normalisiere Anführungszeichen
     .replace(/[""]/g, '"')
     .replace(/['']/g, "'")

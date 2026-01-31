@@ -5,6 +5,7 @@ export interface ReaderState {
   isPlaying: boolean;
   wpm: number;
   progress: number;
+  wordsPerChunk: number;  // Anzahl der gleichzeitig angezeigten Wörter (1-4)
   // Preview-bezogene States
   previewMode: boolean;
   startIndex: number;
@@ -51,6 +52,7 @@ export interface Settings {
   theme: 'light' | 'dark' | 'system';
   fontSize: number;
   fontFamily: string;
+  wordsPerChunk: number;
 }
 
 export interface ORPWord {
@@ -129,4 +131,28 @@ export interface PageTextMapping {
   pageNum: number;
   wordStartIndex: number;
   wordEndIndex: number;
+}
+
+// ePub Types
+export interface CFICheckpoint {
+  wordIndex: number;
+  cfi: string;
+  chapterIndex?: number;
+}
+
+export interface EPubLocation {
+  cfi: string;
+  percentage: number;
+  displayed: {
+    page: number;
+    total: number;
+  };
+}
+
+export interface EPubViewerState {
+  currentLocation: string | null;
+  currentPage: number;
+  totalPages: number;
+  isLoading: boolean;
+  error: string | null;
 }

@@ -61,26 +61,33 @@ export function EPubSelector() {
 
   if (fileName) {
     return (
-      <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 
-                      border border-purple-200 dark:border-purple-800 rounded-lg">
-        <div className="flex items-center gap-3">
-          <svg className="w-8 h-8 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M18 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zM6 4h5v8l-2.5-1.5L6 12V4z" />
-          </svg>
-          <div>
-            <p className="font-medium text-gray-900 dark:text-gray-100">{title || fileName}</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {author} • {chapters.length} Kapitel
-            </p>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 
+                        border border-purple-200 dark:border-purple-800 rounded-lg">
+          <div className="flex items-center gap-3">
+            <svg className="w-8 h-8 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M18 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zM6 4h5v8l-2.5-1.5L6 12V4z" />
+            </svg>
+            <div>
+              <p className="font-medium text-gray-900 dark:text-gray-100">{title || fileName}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {author} • {chapters.length} Kapitel
+              </p>
+            </div>
           </div>
+          <button
+            onClick={reset}
+            className="px-3 py-1 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 
+                       dark:hover:bg-red-900/20 rounded transition-colors"
+          >
+            Entfernen
+          </button>
         </div>
-        <button
-          onClick={reset}
-          className="px-3 py-1 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 
-                     dark:hover:bg-red-900/20 rounded transition-colors"
-        >
-          Entfernen
-        </button>
+        {error && (
+          <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+          </div>
+        )}
       </div>
     );
   }

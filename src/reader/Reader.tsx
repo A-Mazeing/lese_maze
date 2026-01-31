@@ -5,16 +5,18 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { usePageContent } from '@/hooks/usePageContent';
 import { RSVPDisplay } from '@/components/RSVPDisplay';
 import { SpeedControl } from '@/components/SpeedControl';
+import { WordsPerChunkControl } from '@/components/WordsPerChunkControl';
 import { ProgressBar } from '@/components/ProgressBar';
 import { PlaybackControls } from '@/components/PlaybackControls';
 import { PDFSelector } from '@/components/PDFSelector';
 import { PDFViewer } from '@/components/PDFViewer';
 import { EPubSelector } from '@/components/EPubSelector';
+import { EPubViewer } from '@/components/EPubViewer';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ContentPreview } from '@/components/ContentPreview';
 
 type ReaderMode = 'pdf' | 'epub' | 'page' | 'select';
-type ViewMode = 'rsvp' | 'split' | 'pdfSplit';
+type ViewMode = 'rsvp' | 'split' | 'pdfSplit' | 'epubSplit';
 
 export function Reader() {
   const { resolvedTheme } = useTheme();
@@ -44,7 +46,7 @@ export function Reader() {
     }
 
     // Setze View-Mode aus URL-Parameter wenn vorhanden
-    if (urlView && ['rsvp', 'split', 'pdfSplit'].includes(urlView)) {
+    if (urlView && ['rsvp', 'split', 'pdfSplit', 'epubSplit'].includes(urlView)) {
       setViewMode(urlView);
     }
   }, [loadCurrentPage]);
@@ -53,7 +55,7 @@ export function Reader() {
   useEffect(() => {
     if (state.previewMode && viewMode === 'rsvp') {
       setViewMode('split');
-    } else if (!state.previewMode && (viewMode === 'split' || viewMode === 'pdfSplit')) {
+    } else if (!state.previewMode && (viewMode === 'split' || viewMode === 'pdfSplit' || viewMode === 'epubSplit')) {
       setViewMode('rsvp');
     }
   }, [state.previewMode, viewMode]);
@@ -62,6 +64,13 @@ export function Reader() {
   useEffect(() => {
     if (mode === 'pdf' && hasContent && viewMode !== 'pdfSplit' && viewMode !== 'rsvp') {
       setViewMode('pdfSplit');
+    }
+  }, [mode, hasContent, viewMode]);
+
+  // Wechsle zur ePub+RSVP Split-Ansicht wenn ePub geladen wird
+  useEffect(() => {
+    if (mode === 'epub' && hasContent && viewMode !== 'epubSplit' && viewMode !== 'rsvp') {
+      setViewMode('epubSplit');
     }
   }, [mode, hasContent, viewMode]);
 
@@ -83,21 +92,28 @@ export function Reader() {
 
   const handleViewModeChange = (newMode: ViewMode) => {
     setViewMode(newMode);
-    const isPreviewMode = newMode === 'split' || newMode === 'pdfSplit';
+    const isPreviewMode = newMode === 'split' || newMode === 'pdfSplit' || newMode === 'epubSplit';
     dispatch({ type: 'SET_PREVIEW_MODE', payload: isPreviewMode });
   };
 
   // Handler for starting RSVP reading from PDF selection
   const handleStartReadingFromPDF = useCallback((range?: { start: number; end: number }) => {
     if (range) {
-      // Range is already set by PDFViewer, just switch to RSVP view
+      // Range is already set by PDFViewer, just set the reading range
       dispatch({ type: 'SET_READING_RANGE', payload: { startIndex: range.start, endIndex: range.end } });
       dispatch({ type: 'SET_INDEX', payload: range.start });
     }
-    // Switch to RSVP full view
-    setViewMode('rsvp');
-    dispatch({ type: 'SET_PREVIEW_MODE', payload: false });
-    // Start playback
+    // Starte Playback OHNE View-Wechsel - bleibt in Split-View
+    dispatch({ type: 'PLAY' });
+  }, [dispatch]);
+
+  // Handler for starting RSVP reading from ePub selection
+  const handleStartReadingFromEPub = useCallback((range?: { start: number; end: number }) => {
+    if (range) {
+      dispatch({ type: 'SET_READING_RANGE', payload: { startIndex: range.start, endIndex: range.end } });
+      dispatch({ type: 'SET_INDEX', payload: range.start });
+    }
+    // Starte Playback OHNE View-Wechsel - bleibt in Split-View
     dispatch({ type: 'PLAY' });
   }, [dispatch]);
 
@@ -153,8 +169,32 @@ export function Reader() {
                         PDF+RSVP
                       </button>
                     </>
+                  ) : mode === 'epub' ? (
+                    /* ePub-Ansicht: RSVP und ePub+RSVP */
+                    <>
+                      <button
+                        onClick={() => handleViewModeChange('rsvp')}
+                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors
+                          ${viewMode === 'rsvp' 
+                            ? 'bg-white dark:bg-gray-600 shadow-sm' 
+                            : 'hover:bg-gray-200 dark:hover:bg-gray-600'
+                          }`}
+                      >
+                        RSVP
+                      </button>
+                      <button
+                        onClick={() => handleViewModeChange('epubSplit')}
+                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors
+                          ${viewMode === 'epubSplit' 
+                            ? 'bg-white dark:bg-gray-600 shadow-sm' 
+                            : 'hover:bg-gray-200 dark:hover:bg-gray-600'
+                          }`}
+                      >
+                        ePub+RSVP
+                      </button>
+                    </>
                   ) : (
-                    /* ePub/Page-Ansicht: RSVP und Split */
+                    /* Page-Ansicht: RSVP und Split */
                     <>
                       <button
                         onClick={() => handleViewModeChange('rsvp')}
@@ -316,6 +356,7 @@ export function Reader() {
                     <PlaybackControls />
                     <ProgressBar />
                     <SpeedControl />
+                    <WordsPerChunkControl />
                   </div>
 
                   {/* Keyboard Shortcuts Info */}
@@ -356,6 +397,7 @@ export function Reader() {
                       <PlaybackControls size="sm" />
                       <ProgressBar />
                       <SpeedControl compact />
+                      <WordsPerChunkControl compact />
                     </div>
                   </div>
                 </div>
@@ -384,6 +426,36 @@ export function Reader() {
                       <PlaybackControls size="sm" />
                       <ProgressBar />
                       <SpeedControl compact />
+                      <WordsPerChunkControl compact />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ePub + RSVP Split View */}
+              {viewMode === 'epubSplit' && mode === 'epub' && (
+                <div className="flex-1 flex min-h-0 overflow-hidden">
+                  {/* Left: ePub Viewer */}
+                  <div className="w-1/2 border-r border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <EPubViewer 
+                      className="h-full" 
+                      autoSync={true} 
+                      onStartReading={handleStartReadingFromEPub}
+                    />
+                  </div>
+
+                  {/* Right: RSVP */}
+                  <div className="w-1/2 flex flex-col items-center justify-center p-4 gap-4 overflow-y-auto">
+                    <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-sm 
+                                    border border-gray-200 dark:border-gray-700 p-6">
+                      <RSVPDisplay fontSize={42} />
+                    </div>
+
+                    <div className="flex flex-col items-center gap-3 w-full max-w-sm">
+                      <PlaybackControls size="sm" />
+                      <ProgressBar />
+                      <SpeedControl compact />
+                      <WordsPerChunkControl compact />
                     </div>
                   </div>
                 </div>

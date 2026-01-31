@@ -1,7 +1,9 @@
-import { createContext, useContext, useReducer, useRef, useEffect, useCallback, type ReactNode, type Dispatch, type MutableRefObject } from 'react';
-import type { ReaderState, Chapter, ContentMetadata } from '@/types';
+import { createContext, useContext, useReducer, useRef, useEffect, useCallback, useState, type ReactNode, type Dispatch, type MutableRefObject } from 'react';
+import type { ReaderState, Chapter, ContentMetadata, CFICheckpoint } from '@/types';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
+import type { Book } from 'epubjs';
 import { calculateWordDuration } from '@/utils/orpCalculator';
+import { getSettings, saveSettings } from '@/utils/storage';
 
 interface SetContentPayload {
   words: string[];
@@ -31,6 +33,7 @@ type ReaderAction =
   | { type: 'PAUSE' }
   | { type: 'TOGGLE_PLAY' }
   | { type: 'SET_WPM'; payload: number }
+  | { type: 'SET_WORDS_PER_CHUNK'; payload: number }
   | { type: 'RESET' }
   | { type: 'CLEAR_CONTENT' }
   | { type: 'SET_PREVIEW_MODE'; payload: boolean }
@@ -52,6 +55,7 @@ const initialState: ReaderState = {
   isPlaying: false,
   wpm: 300,
   progress: 0,
+  wordsPerChunk: 1,
   previewMode: true, // Standard für Split-Ansicht
   startIndex: 0,
   endIndex: null,
@@ -160,19 +164,19 @@ function readerReducer(state: ReaderState, action: ReaderAction): ReaderState {
     }
     
     case 'PLAY':
-      return { ...state, isPlaying: true, previewMode: false };
+      return { ...state, isPlaying: true };
     
     case 'PAUSE':
       return { ...state, isPlaying: false };
     
     case 'TOGGLE_PLAY':
-      if (!state.isPlaying) {
-        return { ...state, isPlaying: true, previewMode: false };
-      }
-      return { ...state, isPlaying: false };
+      return { ...state, isPlaying: !state.isPlaying };
     
     case 'SET_WPM':
       return { ...state, wpm: Math.max(50, Math.min(1500, action.payload)) };
+    
+    case 'SET_WORDS_PER_CHUNK':
+      return { ...state, wordsPerChunk: Math.max(1, Math.min(4, action.payload)) };
     
     case 'RESET':
       return { 
@@ -187,6 +191,7 @@ function readerReducer(state: ReaderState, action: ReaderAction): ReaderState {
       return {
         ...initialState,
         wpm: state.wpm, // WPM beibehalten
+        wordsPerChunk: state.wordsPerChunk, // wordsPerChunk beibehalten
       };
     
     case 'SET_PREVIEW_MODE':
@@ -322,14 +327,33 @@ interface ReaderContextType {
   state: ReaderState;
   dispatch: Dispatch<ReaderAction>;
   pdfDocumentRef: MutableRefObject<PDFDocumentProxy | null>;
+  epubBookRef: MutableRefObject<Book | null>;
+  cfiCheckpoints: CFICheckpoint[];
+  setCfiCheckpoints: (checkpoints: CFICheckpoint[]) => void;
 }
 
 const ReaderContext = createContext<ReaderContextType | undefined>(undefined);
 
 export function ReaderProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(readerReducer, initialState);
+  const [cfiCheckpoints, setCfiCheckpoints] = useState<CFICheckpoint[]>([]);
   const pdfDocumentRef = useRef<PDFDocumentProxy | null>(null);
+  const epubBookRef = useRef<Book | null>(null);
   const timerRef = useRef<number | null>(null);
+
+  // Lade wordsPerChunk aus gespeicherten Settings beim Start
+  useEffect(() => {
+    getSettings().then(settings => {
+      if (settings.wordsPerChunk && settings.wordsPerChunk !== state.wordsPerChunk) {
+        dispatch({ type: 'SET_WORDS_PER_CHUNK', payload: settings.wordsPerChunk });
+      }
+    });
+  }, []);
+
+  // Speichere wordsPerChunk wenn es sich ändert
+  useEffect(() => {
+    saveSettings({ wordsPerChunk: state.wordsPerChunk });
+  }, [state.wordsPerChunk]);
 
   // Timer stoppen - stabile Referenz
   const stopTimer = useCallback(() => {
@@ -359,22 +383,30 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Berechne Dauer für aktuelles Wort
-    const currentWord = state.words[state.currentIndex];
-    if (!currentWord) {
-      return;
+    // Berechne Dauer für alle Wörter im Chunk
+    // Die Anzeigezeit basiert auf der Anzahl der Wörter
+    const chunkSize = state.wordsPerChunk;
+    let totalDuration = 0;
+    for (let i = 0; i < chunkSize && state.currentIndex + i <= effectiveEnd; i++) {
+      const word = state.words[state.currentIndex + i];
+      if (word) {
+        totalDuration += calculateWordDuration(word, state.wpm);
+      }
     }
     
-    const duration = calculateWordDuration(currentWord, state.wpm);
+    // Falls keine Wörter, Standard-Dauer
+    if (totalDuration === 0) {
+      return;
+    }
 
-    // Starte Timer für nächstes Wort
+    // Starte Timer für nächsten Chunk
     timerRef.current = window.setTimeout(() => {
-      dispatch({ type: 'NEXT_WORD' });
-    }, duration);
+      dispatch({ type: 'SKIP_FORWARD', payload: chunkSize });
+    }, totalDuration);
 
     // Cleanup: Timer stoppen wenn Effect neu ausgeführt wird oder Component unmounted
     return stopTimer;
-  }, [state.isPlaying, state.currentIndex, state.words, state.wpm, state.endIndex, stopTimer]);
+  }, [state.isPlaying, state.currentIndex, state.words, state.wpm, state.wordsPerChunk, state.endIndex, stopTimer]);
 
   // Cleanup beim Unmount
   useEffect(() => {
@@ -382,7 +414,7 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
   }, [stopTimer]);
 
   return (
-    <ReaderContext.Provider value={{ state, dispatch, pdfDocumentRef }}>
+    <ReaderContext.Provider value={{ state, dispatch, pdfDocumentRef, epubBookRef, cfiCheckpoints, setCfiCheckpoints }}>
       {children}
     </ReaderContext.Provider>
   );

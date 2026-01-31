@@ -74,6 +74,10 @@ export function useRSVP() {
     dispatch({ type: 'GOTO_NEXT_PARAGRAPH' });
   }, [dispatch]);
 
+  const setWordsPerChunk = useCallback((count: number) => {
+    dispatch({ type: 'SET_WORDS_PER_CHUNK', payload: count });
+  }, [dispatch]);
+
   return {
     // State
     currentWord: state.words[state.currentIndex] || '',
@@ -82,6 +86,15 @@ export function useRSVP() {
     isPlaying: state.isPlaying,
     wpm: state.wpm,
     progress: state.progress,
+    wordsPerChunk: state.wordsPerChunk,
+    
+    // Lesebereich
+    startIndex: state.startIndex,
+    endIndex: state.endIndex,
+    // Berechne die effektive Anzahl der Wörter im Lesebereich
+    totalWordsInRange: (state.endIndex ?? state.words.length - 1) - state.startIndex + 1,
+    // Position innerhalb des Lesebereichs (1-basiert)
+    positionInRange: state.currentIndex - state.startIndex + 1,
     
     // Actions
     play,
@@ -99,5 +112,6 @@ export function useRSVP() {
     goToNextSentence,
     goToPrevParagraph,
     goToNextParagraph,
+    setWordsPerChunk,
   };
 }

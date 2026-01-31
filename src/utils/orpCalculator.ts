@@ -42,7 +42,7 @@ export function formatWordWithORP(word: string): ORPWord {
 
 /**
  * Berechnet die Anzeigedauer eines Wortes in Millisekunden.
- * Längere Wörter und Wörter mit Satzzeichen bekommen mehr Zeit.
+ * Längere Wörter bekommen mehr Zeit.
  */
 export function calculateWordDuration(word: string, baseWpm: number): number {
   const baseMs = (60 * 1000) / baseWpm;
@@ -52,9 +52,7 @@ export function calculateWordDuration(word: string, baseWpm: number): number {
   if (word.length > 8) multiplier += 0.2;
   if (word.length > 12) multiplier += 0.3;
   
-  // Satzzeichen bekommen Pause
-  if (/[.!?]$/.test(word)) multiplier += 0.5;
-  if (/[,;:]$/.test(word)) multiplier += 0.2;
+  // Keine Pause bei Satzzeichen - gleichmäßiger Lesefluss
   
   return Math.round(baseMs * multiplier);
 }

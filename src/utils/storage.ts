@@ -11,6 +11,7 @@ const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
   fontSize: 48,
   fontFamily: 'system-ui',
+  wordsPerChunk: 1,
 };
 
 /**
