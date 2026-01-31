@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useReader } from '@/contexts/ReaderContext';
-import { tokenizeText, extractTextFromHTML } from '@/utils/textProcessor';
+import { tokenizeTextWithStructure, extractTextFromHTML } from '@/utils/textProcessor';
 
 interface PageContentState {
   isLoading: boolean;
@@ -53,7 +53,7 @@ export function usePageContent() {
           }
 
           const text = extractTextFromHTML(pageContent.content);
-          const words = tokenizeText(text);
+          const { words, sentenceBreaks, paragraphBreaks } = tokenizeTextWithStructure(text);
 
           if (words.length === 0) {
             throw new Error('Keine lesbaren Wörter auf der Seite gefunden.');
@@ -66,7 +66,9 @@ export function usePageContent() {
               words, 
               originalContent: text,
               title: pageContent.title || 'Aktuelle Seite',
-              sourceType: 'page'
+              sourceType: 'page',
+              sentenceBreaks,
+              paragraphBreaks,
             } 
           });
           
@@ -88,7 +90,7 @@ export function usePageContent() {
       } else {
         // Fallback für Entwicklung ohne Extension-Kontext
         const text = document.body.innerText;
-        const words = tokenizeText(text);
+        const { words, sentenceBreaks, paragraphBreaks } = tokenizeTextWithStructure(text);
         
         dispatch({ 
           type: 'SET_CONTENT', 
@@ -96,7 +98,9 @@ export function usePageContent() {
             words, 
             originalContent: text,
             title: document.title,
-            sourceType: 'page'
+            sourceType: 'page',
+            sentenceBreaks,
+            paragraphBreaks,
           } 
         });
         

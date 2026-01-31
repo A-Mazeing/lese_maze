@@ -11,6 +11,8 @@ interface SetContentPayload {
   chapters?: Chapter[];
   pageBreaks?: number[];
   totalPages?: number;
+  sentenceBreaks?: number[];
+  paragraphBreaks?: number[];
 }
 
 type ReaderAction =
@@ -21,6 +23,10 @@ type ReaderAction =
   | { type: 'PREV_WORD' }
   | { type: 'SKIP_FORWARD'; payload?: number }
   | { type: 'SKIP_BACKWARD'; payload?: number }
+  | { type: 'GOTO_PREV_SENTENCE' }
+  | { type: 'GOTO_NEXT_SENTENCE' }
+  | { type: 'GOTO_PREV_PARAGRAPH' }
+  | { type: 'GOTO_NEXT_PARAGRAPH' }
   | { type: 'PLAY' }
   | { type: 'PAUSE' }
   | { type: 'TOGGLE_PLAY' }
@@ -46,11 +52,13 @@ const initialState: ReaderState = {
   isPlaying: false,
   wpm: 300,
   progress: 0,
-  previewMode: true, // Standardmäßig Preview anzeigen
+  previewMode: true, // Standard für Split-Ansicht
   startIndex: 0,
   endIndex: null,
   originalContent: null,
   metadata: initialMetadata,
+  sentenceBreaks: [],
+  paragraphBreaks: [],
 };
 
 function calculateProgress(currentIndex: number, words: string[], startIndex: number, endIndex: number | null): number {
@@ -76,7 +84,7 @@ function readerReducer(state: ReaderState, action: ReaderAction): ReaderState {
       };
     
     case 'SET_CONTENT': {
-      const { words, originalContent, title, sourceType, chapters, pageBreaks, totalPages } = action.payload;
+      const { words, originalContent, title, sourceType, chapters, pageBreaks, totalPages, sentenceBreaks, paragraphBreaks } = action.payload;
       return {
         ...state,
         words,
@@ -87,6 +95,8 @@ function readerReducer(state: ReaderState, action: ReaderAction): ReaderState {
         startIndex: 0,
         endIndex: null,
         previewMode: true,
+        sentenceBreaks: sentenceBreaks ?? [],
+        paragraphBreaks: paragraphBreaks ?? [],
         metadata: {
           title,
           sourceType,
@@ -224,6 +234,82 @@ function readerReducer(state: ReaderState, action: ReaderAction): ReaderState {
         endIndex: validEnd,
         currentIndex: validStart,
         progress: 0,
+      };
+    }
+    
+    case 'GOTO_PREV_SENTENCE': {
+      if (state.sentenceBreaks.length === 0) return state;
+      
+      // Finde den größten Satzanfang, der kleiner als currentIndex ist
+      let targetIndex = 0;
+      for (let i = state.sentenceBreaks.length - 1; i >= 0; i--) {
+        if (state.sentenceBreaks[i] < state.currentIndex) {
+          targetIndex = state.sentenceBreaks[i];
+          break;
+        }
+      }
+      
+      return {
+        ...state,
+        currentIndex: targetIndex,
+        progress: calculateProgress(targetIndex, state.words, state.startIndex, state.endIndex),
+      };
+    }
+    
+    case 'GOTO_NEXT_SENTENCE': {
+      if (state.sentenceBreaks.length === 0) return state;
+      
+      // Finde den kleinsten Satzanfang, der größer als currentIndex ist
+      let targetIndex = state.currentIndex;
+      for (let i = 0; i < state.sentenceBreaks.length; i++) {
+        if (state.sentenceBreaks[i] > state.currentIndex) {
+          targetIndex = state.sentenceBreaks[i];
+          break;
+        }
+      }
+      
+      return {
+        ...state,
+        currentIndex: targetIndex,
+        progress: calculateProgress(targetIndex, state.words, state.startIndex, state.endIndex),
+      };
+    }
+    
+    case 'GOTO_PREV_PARAGRAPH': {
+      if (state.paragraphBreaks.length === 0) return state;
+      
+      // Finde den größten Absatzanfang, der kleiner als currentIndex ist
+      let targetIndex = 0;
+      for (let i = state.paragraphBreaks.length - 1; i >= 0; i--) {
+        if (state.paragraphBreaks[i] < state.currentIndex) {
+          targetIndex = state.paragraphBreaks[i];
+          break;
+        }
+      }
+      
+      return {
+        ...state,
+        currentIndex: targetIndex,
+        progress: calculateProgress(targetIndex, state.words, state.startIndex, state.endIndex),
+      };
+    }
+    
+    case 'GOTO_NEXT_PARAGRAPH': {
+      if (state.paragraphBreaks.length === 0) return state;
+      
+      // Finde den kleinsten Absatzanfang, der größer als currentIndex ist
+      let targetIndex = state.currentIndex;
+      for (let i = 0; i < state.paragraphBreaks.length; i++) {
+        if (state.paragraphBreaks[i] > state.currentIndex) {
+          targetIndex = state.paragraphBreaks[i];
+          break;
+        }
+      }
+      
+      return {
+        ...state,
+        currentIndex: targetIndex,
+        progress: calculateProgress(targetIndex, state.words, state.startIndex, state.endIndex),
       };
     }
     

@@ -58,6 +58,22 @@ export function useRSVP() {
     dispatch({ type: 'SET_WPM', payload: state.wpm - amount });
   }, [dispatch, state.wpm]);
 
+  const goToPrevSentence = useCallback(() => {
+    dispatch({ type: 'GOTO_PREV_SENTENCE' });
+  }, [dispatch]);
+
+  const goToNextSentence = useCallback(() => {
+    dispatch({ type: 'GOTO_NEXT_SENTENCE' });
+  }, [dispatch]);
+
+  const goToPrevParagraph = useCallback(() => {
+    dispatch({ type: 'GOTO_PREV_PARAGRAPH' });
+  }, [dispatch]);
+
+  const goToNextParagraph = useCallback(() => {
+    dispatch({ type: 'GOTO_NEXT_PARAGRAPH' });
+  }, [dispatch]);
+
   return {
     // State
     currentWord: state.words[state.currentIndex] || '',
@@ -79,5 +95,9 @@ export function useRSVP() {
     setWpm,
     increaseWpm,
     decreaseWpm,
+    goToPrevSentence,
+    goToNextSentence,
+    goToPrevParagraph,
+    goToNextParagraph,
   };
 }

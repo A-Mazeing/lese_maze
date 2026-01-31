@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useReader } from '@/contexts/ReaderContext';
-import { tokenizeText, cleanText } from '@/utils/textProcessor';
+import { tokenizeTextWithStructure, cleanText } from '@/utils/textProcessor';
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Worker konfigurieren - Chrome Extension kompatibel
@@ -71,7 +71,7 @@ export function usePDFParser() {
           .join(' ');
         
         const cleanedPageText = cleanText(pageText);
-        const pageWords = tokenizeText(cleanedPageText);
+        const { words: pageWords } = tokenizeTextWithStructure(cleanedPageText);
         
         textParts.push(cleanedPageText);
         totalWordCount += pageWords.length;
@@ -83,7 +83,7 @@ export function usePDFParser() {
       }
 
       const fullText = textParts.join(' ');
-      const words = tokenizeText(fullText);
+      const { words, sentenceBreaks, paragraphBreaks } = tokenizeTextWithStructure(fullText);
 
       if (words.length === 0) {
         throw new Error('Keine lesbaren Wörter im PDF gefunden.');
@@ -102,6 +102,8 @@ export function usePDFParser() {
           sourceType: 'pdf',
           pageBreaks,
           totalPages: pdf.numPages,
+          sentenceBreaks,
+          paragraphBreaks,
         }
       });
       

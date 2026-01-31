@@ -14,14 +14,14 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { ContentPreview } from '@/components/ContentPreview';
 
 type ReaderMode = 'pdf' | 'epub' | 'page' | 'select';
-type ViewMode = 'preview' | 'rsvp' | 'split' | 'pdfView' | 'pdfSplit';
+type ViewMode = 'rsvp' | 'split' | 'pdfSplit';
 
 export function Reader() {
   const { resolvedTheme } = useTheme();
   const { state, dispatch } = useReader();
   const { loadCurrentPage, title: pageTitle, isLoading: pageLoading, error: pageError } = usePageContent();
   const [mode, setMode] = useState<ReaderMode>('select');
-  const [viewMode, setViewMode] = useState<ViewMode>('preview');
+  const [viewMode, setViewMode] = useState<ViewMode>('split');
 
   const hasContent = state.words.length > 0;
 
@@ -32,6 +32,7 @@ export function Reader() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const urlMode = params.get('mode') as ReaderMode | null;
+    const urlView = params.get('view') as ViewMode | null;
     
     if (urlMode && ['pdf', 'epub', 'page'].includes(urlMode)) {
       setMode(urlMode);
@@ -41,21 +42,26 @@ export function Reader() {
         loadCurrentPage();
       }
     }
+
+    // Setze View-Mode aus URL-Parameter wenn vorhanden
+    if (urlView && ['rsvp', 'split', 'pdfSplit'].includes(urlView)) {
+      setViewMode(urlView);
+    }
   }, [loadCurrentPage]);
 
   // Synchronisiere viewMode mit previewMode aus dem State
   useEffect(() => {
     if (state.previewMode && viewMode === 'rsvp') {
-      setViewMode('preview');
-    } else if (!state.previewMode && viewMode === 'preview') {
+      setViewMode('split');
+    } else if (!state.previewMode && (viewMode === 'split' || viewMode === 'pdfSplit')) {
       setViewMode('rsvp');
     }
   }, [state.previewMode, viewMode]);
 
-  // Wechsle zur PDF-Ansicht wenn PDF geladen wird
+  // Wechsle zur PDF+RSVP Split-Ansicht wenn PDF geladen wird
   useEffect(() => {
-    if (mode === 'pdf' && hasContent && viewMode === 'preview') {
-      setViewMode('pdfView');
+    if (mode === 'pdf' && hasContent && viewMode !== 'pdfSplit' && viewMode !== 'rsvp') {
+      setViewMode('pdfSplit');
     }
   }, [mode, hasContent, viewMode]);
 
@@ -77,7 +83,7 @@ export function Reader() {
 
   const handleViewModeChange = (newMode: ViewMode) => {
     setViewMode(newMode);
-    const isPreviewMode = newMode === 'preview' || newMode === 'split' || newMode === 'pdfView' || newMode === 'pdfSplit';
+    const isPreviewMode = newMode === 'split' || newMode === 'pdfSplit';
     dispatch({ type: 'SET_PREVIEW_MODE', payload: isPreviewMode });
   };
 
@@ -109,18 +115,18 @@ export function Reader() {
               {/* View Mode Toggle - nur wenn Inhalt vorhanden */}
               {hasContent && (
                 <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                  {/* PDF-Ansicht nur für PDF-Modus */}
-                  {mode === 'pdf' && (
+                  {/* PDF-Ansicht: RSVP und PDF+RSVP */}
+                  {mode === 'pdf' ? (
                     <>
                       <button
-                        onClick={() => handleViewModeChange('pdfView')}
+                        onClick={() => handleViewModeChange('rsvp')}
                         className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors
-                          ${viewMode === 'pdfView' 
+                          ${viewMode === 'rsvp' 
                             ? 'bg-white dark:bg-gray-600 shadow-sm' 
                             : 'hover:bg-gray-200 dark:hover:bg-gray-600'
                           }`}
                       >
-                        PDF
+                        RSVP
                       </button>
                       <button
                         onClick={() => handleViewModeChange('pdfSplit')}
@@ -133,37 +139,31 @@ export function Reader() {
                         PDF+RSVP
                       </button>
                     </>
+                  ) : (
+                    /* ePub/Page-Ansicht: RSVP und Split */
+                    <>
+                      <button
+                        onClick={() => handleViewModeChange('rsvp')}
+                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors
+                          ${viewMode === 'rsvp' 
+                            ? 'bg-white dark:bg-gray-600 shadow-sm' 
+                            : 'hover:bg-gray-200 dark:hover:bg-gray-600'
+                          }`}
+                      >
+                        RSVP
+                      </button>
+                      <button
+                        onClick={() => handleViewModeChange('split')}
+                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors
+                          ${viewMode === 'split' 
+                            ? 'bg-white dark:bg-gray-600 shadow-sm' 
+                            : 'hover:bg-gray-200 dark:hover:bg-gray-600'
+                          }`}
+                      >
+                        Split
+                      </button>
+                    </>
                   )}
-                  <button
-                    onClick={() => handleViewModeChange('preview')}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors
-                      ${viewMode === 'preview' 
-                        ? 'bg-white dark:bg-gray-600 shadow-sm' 
-                        : 'hover:bg-gray-200 dark:hover:bg-gray-600'
-                      }`}
-                  >
-                    Text
-                  </button>
-                  <button
-                    onClick={() => handleViewModeChange('rsvp')}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors
-                      ${viewMode === 'rsvp' 
-                        ? 'bg-white dark:bg-gray-600 shadow-sm' 
-                        : 'hover:bg-gray-200 dark:hover:bg-gray-600'
-                      }`}
-                  >
-                    RSVP
-                  </button>
-                  <button
-                    onClick={() => handleViewModeChange('split')}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors
-                      ${viewMode === 'split' 
-                        ? 'bg-white dark:bg-gray-600 shadow-sm' 
-                        : 'hover:bg-gray-200 dark:hover:bg-gray-600'
-                      }`}
-                  >
-                    Split
-                  </button>
                 </div>
               )}
 
@@ -290,11 +290,6 @@ export function Reader() {
           {/* Content Views */}
           {hasContent && (
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              {/* Preview Only */}
-              {viewMode === 'preview' && (
-                <ContentPreview className="h-full" />
-              )}
-
               {/* RSVP Only */}
               {viewMode === 'rsvp' && (
                 <div className="flex-1 flex flex-col items-center justify-center p-4 gap-6 overflow-y-auto">
@@ -316,8 +311,10 @@ export function Reader() {
                     </h3>
                     <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400">
                       <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">Space</kbd> Play/Pause</span>
-                      <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">←</kbd> 5 zurück</span>
-                      <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">→</kbd> 5 vor</span>
+                      <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">←</kbd> Voriger Satz</span>
+                      <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">→</kbd> Nächster Satz</span>
+                      <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">Shift+←</kbd> Vorig. Absatz</span>
+                      <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">Shift+→</kbd> Nächst. Absatz</span>
                       <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">↑↓</kbd> Speed</span>
                       <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">Home</kbd> Anfang</span>
                       <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">End</kbd> Ende</span>
@@ -348,11 +345,6 @@ export function Reader() {
                     </div>
                   </div>
                 </div>
-              )}
-
-              {/* PDF View Only */}
-              {viewMode === 'pdfView' && mode === 'pdf' && (
-                <PDFViewer className="h-full" autoSync={false} />
               )}
 
               {/* PDF + RSVP Split View */}

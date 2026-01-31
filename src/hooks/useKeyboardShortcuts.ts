@@ -10,8 +10,10 @@ interface KeyboardShortcutsOptions {
  * 
  * Shortcuts:
  * - Space: Play/Pause
- * - Left Arrow: 5 Wörter zurück
- * - Right Arrow: 5 Wörter vor
+ * - Left Arrow: Zum vorherigen Satz
+ * - Right Arrow: Zum nächsten Satz
+ * - Shift + Left Arrow: Zum vorherigen Absatz
+ * - Shift + Right Arrow: Zum nächsten Absatz
  * - Up Arrow / +: Geschwindigkeit erhöhen
  * - Down Arrow / -: Geschwindigkeit verringern
  * - Home: Zum Anfang
@@ -22,12 +24,14 @@ export function useKeyboardShortcuts({ enabled = true }: KeyboardShortcutsOption
   const {
     toggle,
     pause,
-    skipForward,
-    skipBackward,
     goToStart,
     goToEnd,
     increaseWpm,
     decreaseWpm,
+    goToPrevSentence,
+    goToNextSentence,
+    goToPrevParagraph,
+    goToNextParagraph,
   } = useRSVP();
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
@@ -47,11 +51,19 @@ export function useKeyboardShortcuts({ enabled = true }: KeyboardShortcutsOption
         break;
       case 'ArrowLeft':
         event.preventDefault();
-        skipBackward(event.shiftKey ? 20 : 5);
+        if (event.shiftKey) {
+          goToPrevParagraph();
+        } else {
+          goToPrevSentence();
+        }
         break;
       case 'ArrowRight':
         event.preventDefault();
-        skipForward(event.shiftKey ? 20 : 5);
+        if (event.shiftKey) {
+          goToNextParagraph();
+        } else {
+          goToNextSentence();
+        }
         break;
       case 'ArrowUp':
       case 'NumpadAdd':
@@ -86,7 +98,8 @@ export function useKeyboardShortcuts({ enabled = true }: KeyboardShortcutsOption
         decreaseWpm(50);
         break;
     }
-  }, [toggle, pause, skipForward, skipBackward, goToStart, goToEnd, increaseWpm, decreaseWpm]);
+  }, [toggle, pause, goToStart, goToEnd, increaseWpm, decreaseWpm, 
+      goToPrevSentence, goToNextSentence, goToPrevParagraph, goToNextParagraph]);
 
   useEffect(() => {
     if (!enabled) return;

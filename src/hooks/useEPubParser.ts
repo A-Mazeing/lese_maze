@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useReader } from '@/contexts/ReaderContext';
-import { tokenizeText, cleanText } from '@/utils/textProcessor';
+import { tokenizeTextWithStructure, cleanText } from '@/utils/textProcessor';
 import ePub, { Book } from 'epubjs';
 import type { Chapter } from '@/types';
 
@@ -71,7 +71,7 @@ export function useEPubParser() {
           if (contents && contents.documentElement) {
             const text = contents.documentElement.textContent || '';
             const cleanedText = cleanText(text);
-            const chapterWords = tokenizeText(cleanedText);
+            const { words: chapterWords } = tokenizeTextWithStructure(cleanedText);
             
             if (chapterWords.length > 0) {
               const chapterStartIndex = totalWordCount;
@@ -101,7 +101,7 @@ export function useEPubParser() {
       }
 
       const fullText = textParts.join(' ');
-      const words = tokenizeText(fullText);
+      const { words, sentenceBreaks, paragraphBreaks } = tokenizeTextWithStructure(fullText);
 
       if (words.length === 0) {
         throw new Error('Keine lesbaren Wörter im ePub gefunden.');
@@ -116,6 +116,8 @@ export function useEPubParser() {
           title: metadata.title || file.name.replace(/\.epub$/i, ''),
           sourceType: 'epub',
           chapters: chapterData,
+          sentenceBreaks,
+          paragraphBreaks,
         }
       });
       

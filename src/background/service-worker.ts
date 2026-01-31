@@ -87,8 +87,8 @@ async function handleReadCurrentPage(sendResponse: (response: unknown) => void) 
         }
       });
       
-      // Öffne Reader mit dem Inhalt
-      const readerUrl = chrome.runtime.getURL('src/reader/index.html?mode=page');
+      // Öffne Reader mit dem Inhalt in Split-Ansicht
+      const readerUrl = chrome.runtime.getURL('src/reader/index.html?mode=page&view=split');
       await chrome.tabs.create({ url: readerUrl });
       
       sendResponse({ success: true });

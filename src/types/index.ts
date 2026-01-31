@@ -11,6 +11,9 @@ export interface ReaderState {
   endIndex: number | null;
   originalContent: string | null;
   metadata: ContentMetadata;
+  // Text-Struktur für Navigation
+  sentenceBreaks: number[];   // Indices wo Sätze beginnen
+  paragraphBreaks: number[];  // Indices wo Absätze beginnen
 }
 
 export interface ContentMetadata {
