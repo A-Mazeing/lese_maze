@@ -15,6 +15,12 @@ export interface ReaderState {
   // Text-Struktur für Navigation
   sentenceBreaks: number[];   // Indices wo Sätze beginnen
   paragraphBreaks: number[];  // Indices wo Absätze beginnen
+  // Ramp-up state
+  rampUpEnabled: boolean;
+  rampUpDuration: number;
+  rampUpWordsRemaining: number; // Wie viele Wörter noch im Ramp-up sind
+  // Pause behavior
+  rewindOnPause: boolean;
 }
 
 export interface ContentMetadata {
@@ -53,6 +59,11 @@ export interface Settings {
   fontSize: number;
   fontFamily: string;
   wordsPerChunk: number;
+  // Ramp-up settings
+  rampUpEnabled: boolean;
+  rampUpDuration: number; // Anzahl Wörter für den Ramp-up (z.B. 5-10)
+  // Pause behavior
+  rewindOnPause: boolean; // Bei Pause zum Satzanfang zurückspringen
 }
 
 export interface ORPWord {

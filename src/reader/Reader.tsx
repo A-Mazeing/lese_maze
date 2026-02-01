@@ -6,6 +6,7 @@ import { usePageContent } from '@/hooks/usePageContent';
 import { RSVPDisplay } from '@/components/RSVPDisplay';
 import { SpeedControl } from '@/components/SpeedControl';
 import { WordsPerChunkControl } from '@/components/WordsPerChunkControl';
+import { PlaybackSettings } from '@/components/PlaybackSettings';
 import { ProgressBar } from '@/components/ProgressBar';
 import { PlaybackControls } from '@/components/PlaybackControls';
 import { PDFSelector } from '@/components/PDFSelector';
@@ -352,12 +353,13 @@ export function Reader() {
                     <RSVPDisplay fontSize={56} />
                   </div>
 
-                  <div className="flex flex-col items-center gap-4 w-full max-w-xl">
-                    <PlaybackControls />
-                    <ProgressBar />
-                    <SpeedControl />
-                    <WordsPerChunkControl />
-                  </div>
+                    <div className="flex flex-col items-center gap-4 w-full max-w-xl">
+                      <PlaybackControls />
+                      <ProgressBar />
+                      <SpeedControl />
+                      <WordsPerChunkControl />
+                      <PlaybackSettings />
+                    </div>
 
                   {/* Keyboard Shortcuts Info */}
                   <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg max-w-md">
@@ -398,6 +400,7 @@ export function Reader() {
                       <ProgressBar />
                       <SpeedControl compact />
                       <WordsPerChunkControl compact />
+                      <PlaybackSettings compact />
                     </div>
                   </div>
                 </div>
@@ -427,6 +430,7 @@ export function Reader() {
                       <ProgressBar />
                       <SpeedControl compact />
                       <WordsPerChunkControl compact />
+                      <PlaybackSettings compact />
                     </div>
                   </div>
                 </div>
@@ -456,6 +460,7 @@ export function Reader() {
                       <ProgressBar />
                       <SpeedControl compact />
                       <WordsPerChunkControl compact />
+                      <PlaybackSettings compact />
                     </div>
                   </div>
                 </div>

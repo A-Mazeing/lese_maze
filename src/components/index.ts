@@ -7,3 +7,6 @@ export { PDFViewer } from './PDFViewer';
 export { EPubSelector } from './EPubSelector';
 export { ThemeToggle } from './ThemeToggle';
 export { BookmarkList } from './BookmarkList';
+
+// Shared components
+export * from './shared';

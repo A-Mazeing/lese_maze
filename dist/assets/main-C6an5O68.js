@@ -1,0 +1,1 @@
+import{j as r,T as e,c as t,r as o}from"./ThemeContext-C3tLiFgH.js";import{R as s,a as i}from"./Reader-DJ52Jie1.js";import"./epub--x6Qq_uX.js";import"./react-vendor-CTRnUdJL.js";import"./pdf-worker-CPlW4DkC.js";function a(){return r.jsx(e,{children:r.jsx(s,{children:r.jsx(i,{})})})}t.createRoot(document.getElementById("root")).render(r.jsx(o.StrictMode,{children:r.jsx(a,{})}));

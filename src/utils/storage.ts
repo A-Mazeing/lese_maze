@@ -12,6 +12,9 @@ const DEFAULT_SETTINGS: Settings = {
   fontSize: 48,
   fontFamily: 'system-ui',
   wordsPerChunk: 1,
+  rampUpEnabled: true,
+  rampUpDuration: 5, // 5 Wörter für sanften Start
+  rewindOnPause: true, // Standardmäßig zum Satzanfang zurückspringen
 };
 
 /**

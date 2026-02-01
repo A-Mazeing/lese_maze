@@ -107,9 +107,8 @@ kbd {
   -webkit-user-select: text;
   -moz-user-select: text;
   z-index: 2;
-  /* Performance-Optimierungen für smooth Rendering */
-  will-change: contents;
-  contain: layout style;
+  /* Optimize for stable rendering */
+  opacity: 1;
 }
 
 /* PDF.js 4.x/5.x creates nested spans (markedContent > span), so use descendant selector */
@@ -121,12 +120,9 @@ kbd {
   transform-origin: 0% 0%;
   pointer-events: auto;
   user-select: text;
-  /* Verhindere Subpixel-Verschiebungen die zu Doppelmarkierungen führen */
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  /* Smooth Transform für bessere Ausrichtung */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Bessere Rendering-Qualität */
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: auto;
 }
 
 /* Also target direct children for backwards compatibility */
@@ -136,23 +132,19 @@ kbd {
   white-space: pre;
   cursor: text;
   transform-origin: 0% 0%;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
 }
 
 /* Selection highlighting - covers all nested levels */
 /* Verbesserte Sichtbarkeit und konsistentes Verhalten */
 .text-layer span::selection,
 .text-layer > span::selection {
-  background: rgba(59, 130, 246, 0.5);
+  background: rgba(59, 130, 246, 0.4);
   color: transparent;
-  /* Verhindere Flackern während Selektion */
-  -webkit-background-clip: text;
 }
 
 .text-layer span::-moz-selection,
 .text-layer > span::-moz-selection {
-  background: rgba(59, 130, 246, 0.5);
+  background: rgba(59, 130, 246, 0.4);
   color: transparent;
 }
 

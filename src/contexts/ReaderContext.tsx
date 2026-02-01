@@ -39,7 +39,11 @@ type ReaderAction =
   | { type: 'SET_PREVIEW_MODE'; payload: boolean }
   | { type: 'SET_START_INDEX'; payload: number }
   | { type: 'SET_END_INDEX'; payload: number | null }
-  | { type: 'SET_READING_RANGE'; payload: { startIndex: number; endIndex: number | null } };
+  | { type: 'SET_READING_RANGE'; payload: { startIndex: number; endIndex: number | null } }
+  | { type: 'SET_RAMP_UP_ENABLED'; payload: boolean }
+  | { type: 'SET_RAMP_UP_DURATION'; payload: number }
+  | { type: 'SET_REWIND_ON_PAUSE'; payload: boolean }
+  | { type: 'DECREMENT_RAMP_UP' };
 
 const initialMetadata: ContentMetadata = {
   title: null,
@@ -63,6 +67,12 @@ const initialState: ReaderState = {
   metadata: initialMetadata,
   sentenceBreaks: [],
   paragraphBreaks: [],
+  // Ramp-up settings
+  rampUpEnabled: true,
+  rampUpDuration: 5,
+  rampUpWordsRemaining: 0,
+  // Pause behavior
+  rewindOnPause: true,
 };
 
 function calculateProgress(currentIndex: number, words: string[], startIndex: number, endIndex: number | null): number {
@@ -164,13 +174,64 @@ function readerReducer(state: ReaderState, action: ReaderAction): ReaderState {
     }
     
     case 'PLAY':
-      return { ...state, isPlaying: true };
+      return { 
+        ...state, 
+        isPlaying: true,
+        // Starte Ramp-up wenn aktiviert
+        rampUpWordsRemaining: state.rampUpEnabled ? state.rampUpDuration : 0,
+      };
     
-    case 'PAUSE':
-      return { ...state, isPlaying: false };
+    case 'PAUSE': {
+      // Wenn rewindOnPause aktiviert ist, springe zum Satzanfang zurück
+      if (state.rewindOnPause && state.sentenceBreaks.length > 0) {
+        // Finde den größten Satzanfang, der kleiner oder gleich currentIndex ist
+        let targetIndex = state.startIndex;
+        for (let i = state.sentenceBreaks.length - 1; i >= 0; i--) {
+          if (state.sentenceBreaks[i] <= state.currentIndex) {
+            targetIndex = Math.max(state.startIndex, state.sentenceBreaks[i]);
+            break;
+          }
+        }
+        return { 
+          ...state, 
+          isPlaying: false,
+          currentIndex: targetIndex,
+          progress: calculateProgress(targetIndex, state.words, state.startIndex, state.endIndex),
+          rampUpWordsRemaining: 0,
+        };
+      }
+      return { ...state, isPlaying: false, rampUpWordsRemaining: 0 };
+    }
     
-    case 'TOGGLE_PLAY':
-      return { ...state, isPlaying: !state.isPlaying };
+    case 'TOGGLE_PLAY': {
+      if (state.isPlaying) {
+        // Pausieren - gleiche Logik wie PAUSE
+        if (state.rewindOnPause && state.sentenceBreaks.length > 0) {
+          let targetIndex = state.startIndex;
+          for (let i = state.sentenceBreaks.length - 1; i >= 0; i--) {
+            if (state.sentenceBreaks[i] <= state.currentIndex) {
+              targetIndex = Math.max(state.startIndex, state.sentenceBreaks[i]);
+              break;
+            }
+          }
+          return { 
+            ...state, 
+            isPlaying: false,
+            currentIndex: targetIndex,
+            progress: calculateProgress(targetIndex, state.words, state.startIndex, state.endIndex),
+            rampUpWordsRemaining: 0,
+          };
+        }
+        return { ...state, isPlaying: false, rampUpWordsRemaining: 0 };
+      } else {
+        // Starten - gleiche Logik wie PLAY
+        return { 
+          ...state, 
+          isPlaying: true,
+          rampUpWordsRemaining: state.rampUpEnabled ? state.rampUpDuration : 0,
+        };
+      }
+    }
     
     case 'SET_WPM':
       return { ...state, wpm: Math.max(50, Math.min(1500, action.payload)) };
@@ -318,6 +379,21 @@ function readerReducer(state: ReaderState, action: ReaderAction): ReaderState {
       };
     }
     
+    case 'SET_RAMP_UP_ENABLED':
+      return { ...state, rampUpEnabled: action.payload };
+    
+    case 'SET_RAMP_UP_DURATION':
+      return { ...state, rampUpDuration: Math.max(1, Math.min(20, action.payload)) };
+    
+    case 'SET_REWIND_ON_PAUSE':
+      return { ...state, rewindOnPause: action.payload };
+    
+    case 'DECREMENT_RAMP_UP':
+      return { 
+        ...state, 
+        rampUpWordsRemaining: Math.max(0, state.rampUpWordsRemaining - 1),
+      };
+    
     default:
       return state;
   }
@@ -341,19 +417,33 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
   const epubBookRef = useRef<Book | null>(null);
   const timerRef = useRef<number | null>(null);
 
-  // Lade wordsPerChunk aus gespeicherten Settings beim Start
+  // Lade Settings aus gespeicherten Settings beim Start
   useEffect(() => {
     getSettings().then(settings => {
       if (settings.wordsPerChunk && settings.wordsPerChunk !== state.wordsPerChunk) {
         dispatch({ type: 'SET_WORDS_PER_CHUNK', payload: settings.wordsPerChunk });
       }
+      if (settings.rampUpEnabled !== undefined) {
+        dispatch({ type: 'SET_RAMP_UP_ENABLED', payload: settings.rampUpEnabled });
+      }
+      if (settings.rampUpDuration !== undefined) {
+        dispatch({ type: 'SET_RAMP_UP_DURATION', payload: settings.rampUpDuration });
+      }
+      if (settings.rewindOnPause !== undefined) {
+        dispatch({ type: 'SET_REWIND_ON_PAUSE', payload: settings.rewindOnPause });
+      }
     });
   }, []);
 
-  // Speichere wordsPerChunk wenn es sich ändert
+  // Speichere Settings wenn sie sich ändern
   useEffect(() => {
-    saveSettings({ wordsPerChunk: state.wordsPerChunk });
-  }, [state.wordsPerChunk]);
+    saveSettings({ 
+      wordsPerChunk: state.wordsPerChunk,
+      rampUpEnabled: state.rampUpEnabled,
+      rampUpDuration: state.rampUpDuration,
+      rewindOnPause: state.rewindOnPause,
+    });
+  }, [state.wordsPerChunk, state.rampUpEnabled, state.rampUpDuration, state.rewindOnPause]);
 
   // Timer stoppen - stabile Referenz
   const stopTimer = useCallback(() => {
@@ -399,14 +489,27 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Ramp-up: Verlangsame die Geschwindigkeit am Anfang
+    // Wir starten bei 50% Geschwindigkeit und steigern linear zur Zielgeschwindigkeit
+    if (state.rampUpWordsRemaining > 0 && state.rampUpDuration > 0) {
+      // Berechne Ramp-up Faktor: startet bei 2.0 (50% Geschwindigkeit) und geht zu 1.0
+      const progress = 1 - (state.rampUpWordsRemaining / state.rampUpDuration);
+      const rampUpMultiplier = 2.0 - progress; // 2.0 -> 1.0
+      totalDuration = Math.round(totalDuration * rampUpMultiplier);
+    }
+
     // Starte Timer für nächsten Chunk
     timerRef.current = window.setTimeout(() => {
+      // Dekrementiere Ramp-up Counter wenn aktiv
+      if (state.rampUpWordsRemaining > 0) {
+        dispatch({ type: 'DECREMENT_RAMP_UP' });
+      }
       dispatch({ type: 'SKIP_FORWARD', payload: chunkSize });
     }, totalDuration);
 
     // Cleanup: Timer stoppen wenn Effect neu ausgeführt wird oder Component unmounted
     return stopTimer;
-  }, [state.isPlaying, state.currentIndex, state.words, state.wpm, state.wordsPerChunk, state.endIndex, stopTimer]);
+  }, [state.isPlaying, state.currentIndex, state.words, state.wpm, state.wordsPerChunk, state.endIndex, state.rampUpWordsRemaining, state.rampUpDuration, stopTimer]);
 
   // Cleanup beim Unmount
   useEffect(() => {

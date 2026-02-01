@@ -1,0 +1,117 @@
+import { useReader } from '@/contexts/ReaderContext';
+
+interface PlaybackSettingsProps {
+  compact?: boolean;
+}
+
+/**
+ * Playback-Einstellungen für Ramp-up und Pause-Verhalten.
+ */
+export function PlaybackSettings({ compact = false }: PlaybackSettingsProps) {
+  const { state, dispatch } = useReader();
+
+  const handleRampUpToggle = () => {
+    dispatch({ type: 'SET_RAMP_UP_ENABLED', payload: !state.rampUpEnabled });
+  };
+
+  const handleRewindOnPauseToggle = () => {
+    dispatch({ type: 'SET_REWIND_ON_PAUSE', payload: !state.rewindOnPause });
+  };
+
+  const handleRampUpDurationChange = (value: number) => {
+    dispatch({ type: 'SET_RAMP_UP_DURATION', payload: value });
+  };
+
+  if (compact) {
+    return (
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        {/* Ramp-up Toggle */}
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={state.rampUpEnabled}
+            onChange={handleRampUpToggle}
+            className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 
+                       text-blue-600 focus:ring-blue-500 dark:bg-gray-700"
+          />
+          <span className="text-gray-700 dark:text-gray-300">Sanfter Start</span>
+        </label>
+
+        {/* Rewind on Pause Toggle */}
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={state.rewindOnPause}
+            onChange={handleRewindOnPauseToggle}
+            className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 
+                       text-blue-600 focus:ring-blue-500 dark:bg-gray-700"
+          />
+          <span className="text-gray-700 dark:text-gray-300">Satz bei Pause</span>
+        </label>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+        Wiedergabe-Einstellungen
+      </h3>
+
+      {/* Ramp-up Setting */}
+      <div className="flex flex-col gap-2">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={state.rampUpEnabled}
+            onChange={handleRampUpToggle}
+            className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 
+                       text-blue-600 focus:ring-blue-500 dark:bg-gray-700"
+          />
+          <span className="text-gray-700 dark:text-gray-300">
+            Sanfter Start (Ramp-up)
+          </span>
+        </label>
+        
+        {state.rampUpEnabled && (
+          <div className="flex items-center gap-2 ml-6">
+            <input
+              type="range"
+              min="2"
+              max="15"
+              value={state.rampUpDuration}
+              onChange={(e) => handleRampUpDurationChange(Number(e.target.value))}
+              className="w-24 h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
+            />
+            <span className="text-sm text-gray-500 dark:text-gray-400 w-16">
+              {state.rampUpDuration} Wörter
+            </span>
+          </div>
+        )}
+        
+        <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">
+          Startet langsamer und beschleunigt zur Zielgeschwindigkeit
+        </p>
+      </div>
+
+      {/* Rewind on Pause Setting */}
+      <div className="flex flex-col gap-1">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={state.rewindOnPause}
+            onChange={handleRewindOnPauseToggle}
+            className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 
+                       text-blue-600 focus:ring-blue-500 dark:bg-gray-700"
+          />
+          <span className="text-gray-700 dark:text-gray-300">
+            Bei Pause zum Satzanfang
+          </span>
+        </label>
+        <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">
+          Springt beim Pausieren automatisch zum Anfang des aktuellen Satzes
+        </p>
+      </div>
+    </div>
+  );
+}
