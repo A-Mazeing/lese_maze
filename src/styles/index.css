@@ -166,7 +166,7 @@ kbd {
   background: rgba(96, 165, 250, 0.6);
 }
 
-/* PDF Canvas Container */
+/* PDF Canvas Container (Legacy - for old PDFViewer) */
 .pdf-canvas-container {
   display: flex;
   justify-content: center;
@@ -180,4 +180,63 @@ kbd {
   position: relative;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
   background-color: white;
+}
+
+/* PDF Text Viewer Styling - Text-based rendering */
+.pdf-text-content {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+}
+
+.pdf-text-content p {
+  cursor: text;
+}
+
+/* PDF Page separator */
+.pdf-page {
+  scroll-margin-top: 2rem;
+}
+
+/* PDF Word spans for precise highlighting */
+.pdf-word {
+  cursor: text;
+  display: inline;
+}
+
+/* Text selection in PDF Text Viewer - Subtle blue */
+.pdf-text-content ::selection {
+  background: rgba(59, 130, 246, 0.15);
+  color: inherit;
+}
+
+.pdf-text-content ::-moz-selection {
+  background: rgba(59, 130, 246, 0.15);
+  color: inherit;
+}
+
+.dark .pdf-text-content ::selection {
+  background: rgba(96, 165, 250, 0.2);
+  color: inherit;
+}
+
+.dark .pdf-text-content ::-moz-selection {
+  background: rgba(96, 165, 250, 0.2);
+  color: inherit;
+}
+
+/* RSVP Text Highlighting (for PDF Text Viewer) */
+.rsvp-text-highlight {
+  background-color: #fef08a !important;
+  color: #1f2937 !important;
+  border-radius: 2px;
+  padding: 0 2px;
+  box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.3);
+  transition: background-color 0.15s ease;
+}
+
+.dark .rsvp-text-highlight {
+  background-color: #854d0e !important;
+  color: #fef9c3 !important;
+  box-shadow: 0 0 0 2px rgba(133, 77, 14, 0.4);
 }

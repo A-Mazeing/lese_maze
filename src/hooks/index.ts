@@ -11,7 +11,8 @@ export {
   type AllShortcutHandlers,
 } from './useContextShortcuts';
 export { usePDFParser } from './usePDFParser';
-export { usePDFViewer } from './usePDFViewer';
+export { usePDFViewer } from './usePDFViewer'; // Legacy Canvas-based viewer hook
+export { usePDFTextRenderer } from './usePDFTextRenderer'; // New text-based viewer hook
 export { useEPubParser } from './useEPubParser';
 export { usePageContent } from './usePageContent';
 export { useProgress } from './useProgress';

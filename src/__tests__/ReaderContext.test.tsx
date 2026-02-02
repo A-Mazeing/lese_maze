@@ -269,7 +269,9 @@ describe('ReaderContext', () => {
       });
       
       expect(result.current.state.isPlaying).toBe(true);
-      expect(result.current.state.previewMode).toBe(false);
+      // previewMode wird nicht automatisch durch PLAY geändert
+      // Das Umschalten passiert in der UI-Komponente (Reader.tsx), nicht im Context
+      expect(result.current.state.previewMode).toBe(true);
       
       act(() => {
         result.current.dispatch({ type: 'PAUSE' });

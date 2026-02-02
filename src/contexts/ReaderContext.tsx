@@ -504,6 +504,7 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
       if (state.rampUpWordsRemaining > 0) {
         dispatch({ type: 'DECREMENT_RAMP_UP' });
       }
+      
       dispatch({ type: 'SKIP_FORWARD', payload: chunkSize });
     }, totalDuration);
 

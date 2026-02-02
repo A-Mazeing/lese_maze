@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useReader } from '@/contexts/ReaderContext';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -10,7 +10,7 @@ import { PlaybackSettings } from '@/components/PlaybackSettings';
 import { ProgressBar } from '@/components/ProgressBar';
 import { PlaybackControls } from '@/components/PlaybackControls';
 import { PDFSelector } from '@/components/PDFSelector';
-import { PDFViewer } from '@/components/PDFViewer';
+import { PDFTextViewer } from '@/components/PDFTextViewer';
 import { EPubSelector } from '@/components/EPubSelector';
 import { EPubViewer } from '@/components/EPubViewer';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -25,6 +25,11 @@ export function Reader() {
   const { loadCurrentPage, title: pageTitle, isLoading: pageLoading, error: pageError } = usePageContent();
   const [mode, setMode] = useState<ReaderMode>('select');
   const [viewMode, setViewMode] = useState<ViewMode>('split');
+  
+  // State für RSVP Panel Positionierung
+  // null = keine Markierung, Panel startet oben
+  const [highlightViewportY, setHighlightViewportY] = useState<number | null>(null);
+  const rsvpContainerRef = useRef<HTMLDivElement>(null);
 
   const hasContent = state.words.length > 0;
 
@@ -53,12 +58,17 @@ export function Reader() {
   }, [loadCurrentPage]);
 
   // Synchronisiere viewMode mit previewMode aus dem State
+  // Nur für die generische 'split' View - pdfSplit und epubSplit behalten ihren Zustand
   useEffect(() => {
     if (state.previewMode && viewMode === 'rsvp') {
+      // Wenn previewMode aktiviert wird und wir in rsvp sind, wechsle zu split
       setViewMode('split');
-    } else if (!state.previewMode && (viewMode === 'split' || viewMode === 'pdfSplit' || viewMode === 'epubSplit')) {
+    } else if (!state.previewMode && viewMode === 'split') {
+      // Nur 'split' zu 'rsvp' wechseln, NICHT pdfSplit/epubSplit
+      // Diese sollen während der Wiedergabe bestehen bleiben
       setViewMode('rsvp');
     }
+    // pdfSplit und epubSplit werden nicht automatisch gewechselt
   }, [state.previewMode, viewMode]);
 
   // Wechsle zur PDF+RSVP Split-Ansicht wenn PDF geladen wird
@@ -107,6 +117,36 @@ export function Reader() {
     // Starte Playback OHNE View-Wechsel - bleibt in Split-View
     dispatch({ type: 'PLAY' });
   }, [dispatch]);
+
+  // Handler für die Y-Position des markierten Wortes im PDF
+  const handleHighlightPositionChange = useCallback((viewportY: number | null) => {
+    setHighlightViewportY(viewportY);
+  }, []);
+
+  // Berechne die Style für das RSVP Panel basierend auf der Highlight-Position
+  const rsvpPanelStyle = useMemo(() => {
+    const container = rsvpContainerRef.current;
+    
+    // Default: Panel startet oben
+    if (highlightViewportY === null || !container) {
+      return { top: '16px' };
+    }
+    
+    const containerRect = container.getBoundingClientRect();
+    const panelHeight = 400; // Geschätzte Höhe von RSVP + Controls
+    const padding = 16;
+    
+    // Berechne Position relativ zum Container
+    let targetTop = highlightViewportY - containerRect.top;
+    targetTop -= 80; // Zentriere Panel etwas über dem markierten Wort
+    
+    // Bleibe innerhalb der Grenzen
+    const minTop = padding;
+    const maxTop = containerRect.height - panelHeight - padding;
+    targetTop = Math.max(minTop, Math.min(maxTop, targetTop));
+    
+    return { top: `${targetTop}px` };
+  }, [highlightViewportY]);
 
   // Handler for starting RSVP reading from ePub selection
   const handleStartReadingFromEPub = useCallback((range?: { start: number; end: number }) => {
@@ -409,28 +449,43 @@ export function Reader() {
               {/* PDF + RSVP Split View */}
               {viewMode === 'pdfSplit' && mode === 'pdf' && (
                 <div className="flex-1 flex min-h-0 overflow-hidden">
-                  {/* Left: PDF Viewer */}
+                  {/* Left: PDF Text Viewer */}
                   <div className="w-1/2 border-r border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <PDFViewer 
+                    <PDFTextViewer 
                       className="h-full" 
                       autoSync={true} 
                       onStartReading={handleStartReadingFromPDF}
+                      onHighlightPositionChange={handleHighlightPositionChange}
                     />
                   </div>
 
-                  {/* Right: RSVP */}
-                  <div className="w-1/2 flex flex-col items-center justify-center p-4 gap-4 overflow-y-auto">
-                    <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-sm 
-                                    border border-gray-200 dark:border-gray-700 p-6">
-                      <RSVPDisplay fontSize={42} />
-                    </div>
-
-                    <div className="flex flex-col items-center gap-3 w-full max-w-sm">
-                      <PlaybackControls size="sm" />
-                      <ProgressBar />
-                      <SpeedControl compact />
-                      <WordsPerChunkControl compact />
-                      <PlaybackSettings compact />
+                  {/* Right: RSVP - synchronisiert mit dem markierten Text links */}
+                  <div 
+                    ref={rsvpContainerRef}
+                    className="w-1/2 relative bg-gray-50 dark:bg-gray-900 overflow-hidden"
+                  >
+                    {/* RSVP Panel + Controls als eine bewegliche Einheit */}
+                    <div 
+                      className="absolute left-4 right-4 transition-all duration-200 ease-out"
+                      style={rsvpPanelStyle}
+                    >
+                      {/* RSVP Display */}
+                      <div className="w-full max-w-md mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg 
+                                      border border-gray-200 dark:border-gray-700 p-6 mb-4">
+                        <RSVPDisplay fontSize={42} />
+                      </div>
+                      
+                      {/* Controls - direkt unter RSVP */}
+                      <div className="w-full max-w-sm mx-auto">
+                        <div className="flex flex-col items-center gap-3 p-4 bg-white/80 dark:bg-gray-800/80 
+                                        backdrop-blur rounded-xl border border-gray-200 dark:border-gray-700">
+                          <PlaybackControls size="sm" />
+                          <ProgressBar />
+                          <SpeedControl compact />
+                          <WordsPerChunkControl compact />
+                          <PlaybackSettings compact />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -448,19 +503,25 @@ export function Reader() {
                     />
                   </div>
 
-                  {/* Right: RSVP */}
-                  <div className="w-1/2 flex flex-col items-center justify-center p-4 gap-4 overflow-y-auto">
-                    <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-sm 
-                                    border border-gray-200 dark:border-gray-700 p-6">
-                      <RSVPDisplay fontSize={42} />
+                  {/* Right: RSVP - vertikal zentriert, synchron mit dem markierten Text links */}
+                  <div className="w-1/2 flex flex-col bg-gray-50 dark:bg-gray-900">
+                    {/* RSVP Display - vertikal zentriert */}
+                    <div className="flex-1 flex items-center justify-center px-4">
+                      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-lg 
+                                      border border-gray-200 dark:border-gray-700 p-6">
+                        <RSVPDisplay fontSize={42} />
+                      </div>
                     </div>
 
-                    <div className="flex flex-col items-center gap-3 w-full max-w-sm">
-                      <PlaybackControls size="sm" />
-                      <ProgressBar />
-                      <SpeedControl compact />
-                      <WordsPerChunkControl compact />
-                      <PlaybackSettings compact />
+                    {/* Controls - unten */}
+                    <div className="flex-shrink-0 p-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex flex-col items-center gap-3 w-full max-w-sm mx-auto">
+                        <PlaybackControls size="sm" />
+                        <ProgressBar />
+                        <SpeedControl compact />
+                        <WordsPerChunkControl compact />
+                        <PlaybackSettings compact />
+                      </div>
                     </div>
                   </div>
                 </div>
