@@ -137,10 +137,11 @@ lese_maze/
     │   ├── pdf/                  # PdfPage (Canvas + Textlayer einer Seite)
     │   ├── viewer/               # WordViewer (virtualisiert), DocumentTextView
     │   └── shared/               # DocumentSelector, ViewerContextMenu, ViewerToolbar, LoadingState
+    ├── ads/                      # Werbe-Schnittstelle (aus im Standard-Build): Config, Regeln, Feed, Store
     ├── popup/                    # Popup (PDF/ePub/Seite, zuletzt gelesen)
     ├── reader/                   # Reader-Tab: Quellenwahl, RSVP-Panel, Resume-Hinweis
     ├── styles/index.css          # Tailwind 4, Basis-CSS in @layer base
-    └── __tests__/                # 16 Testdateien, 255 Tests
+    └── __tests__/                # 17 Testdateien, 283 Tests
 ```
 
 ## 4. Änderungen an Manifest, Vite und Dependencies
@@ -175,7 +176,7 @@ lese_maze/
 
 ## 5. Verifikation
 
-* `npm run check`: Typecheck (App + Node-Config), ESLint (0 Meldungen), 255 Unit-/Komponententests – alle grün.
+* `npm run check`: Typecheck (App + Node-Config), ESLint (0 Meldungen), 283 Unit-/Komponententests – alle grün.
 * `npm run build`: fehlerfrei; `dist/` enthält Manifest, Service-Worker-Loader, Reader/Popup, pdf.js-Worker sowie CMaps, Standardschriften, WASM- und ICC-Dateien (`dist/pdfjs/`).
 * Ende-zu-Ende in echtem Chromium (Playwright, `--load-extension`, Xvfb) – 23 Prüfungen, alle bestanden:
   PDF-Import (Entsilbung, keine Seitenzahlen), Wiedergabetakt (Ø 104 ms bei 600 WPM, kein Drift), ePub-Rendering,

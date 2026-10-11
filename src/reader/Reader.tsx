@@ -3,6 +3,8 @@ import { EPubSelector } from '@/components/EPubSelector';
 import { EPubViewer } from '@/components/EPubViewer';
 import { PDFSelector } from '@/components/PDFSelector';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { AdPreferenceToggle } from '@/components/ads/AdPreferenceToggle';
+import { AdSlot } from '@/components/ads/AdSlot';
 import { PDFViewer } from '@/components/PDFViewer';
 import { ContentPreview } from '@/components/viewer';
 import { ErrorDisplay, LoadingState } from '@/components/shared';
@@ -156,7 +158,14 @@ export function Reader() {
           </div>
         )}
 
-        {mode === 'select' && !hasContent && <SourcePicker onSelect={setMode} />}
+        {mode === 'select' && !hasContent && (
+          <>
+            <SourcePicker onSelect={setMode} />
+            <div className="flex-shrink-0 flex justify-center px-4 pb-4 empty:hidden">
+              <AdSlot placement="home" />
+            </div>
+          </>
+        )}
 
         {mode === 'pdf' && !hasContent && (
           <div className="flex-1 flex items-center justify-center p-8">
@@ -216,6 +225,10 @@ export function Reader() {
           </div>
         )}
       </main>
+
+      <footer className="flex-shrink-0 flex justify-center px-4 py-1.5 empty:hidden">
+        <AdPreferenceToggle />
+      </footer>
     </div>
   );
 }

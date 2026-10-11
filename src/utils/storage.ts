@@ -175,6 +175,28 @@ export function deleteProgress(id: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Allgemeine Werte (z. B. Werbe-Einstellungen)
+// ---------------------------------------------------------------------------
+
+/** Liest einen beliebigen Wert (nie werfend; bei Fehlern `undefined`). */
+export async function readStoredValue(key: string): Promise<unknown> {
+  try {
+    return await getBackend().read(key);
+  } catch (error) {
+    console.error(`[storage] "${key}" konnte nicht gelesen werden:`, error);
+    return undefined;
+  }
+}
+
+/** Liest, ändert und schreibt einen Wert atomar (serialisiert mit allen anderen Schreibzugriffen). */
+export function updateStoredValue(key: string, update: (current: unknown) => unknown): Promise<void> {
+  return serialize(async () => {
+    const backend = getBackend();
+    await backend.write(key, update(await backend.read(key)));
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Dokument-ID
 // ---------------------------------------------------------------------------
 

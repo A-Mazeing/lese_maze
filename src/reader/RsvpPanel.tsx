@@ -1,3 +1,4 @@
+import { AdSlot } from '@/components/ads/AdSlot';
 import { PlaybackControls } from '@/components/PlaybackControls';
 import { PlaybackSettings } from '@/components/PlaybackSettings';
 import { ProgressBar } from '@/components/ProgressBar';
@@ -45,6 +46,9 @@ export function RsvpPanel({ size = 'lg' }: RsvpPanelProps) {
         <WordsPerChunkControl compact={compact} />
         <PlaybackSettings compact={compact} />
       </div>
+
+      {/* Nur am Ende des Lesens, nie während der Wiedergabe. */}
+      {isFinished && <AdSlot placement="finished" />}
     </div>
   );
 }

@@ -13,6 +13,7 @@ Chrome-Erweiterung (Manifest V3) zum Schnelllesen von **PDF-, ePub- und Webseite
 - Webseiten: Hauptinhalt oder markierter Text („Aktuelle Seite lesen“ im Popup)
 - Lesebereich per Textauswahl (Start, Ende, Bereich), Sprung zu Satz/Absatz, Tastaturkürzel (Übersicht im Reader)
 - Lesefortschritt je Dokument, Hell-/Dunkelmodus
+- Optionale Werbe-Schnittstelle (im Standard-Build aus; nie während des Lesens, mit Ausblenden-Schalter) – siehe `docs/PUBLISHING.md`
 - Datenschutz: keine Content Scripts, keine Host-Berechtigungen; alle Daten bleiben lokal
 
 ## Entwicklung
