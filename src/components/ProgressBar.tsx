@@ -1,6 +1,7 @@
 import { memo, useCallback, type KeyboardEvent, type MouseEvent } from 'react';
 import { useReaderDispatch, useReaderSelector } from '@/contexts/ReaderContext';
 import { getEffectiveEnd } from '@/contexts/readerReducer';
+import { formatNumber, useT } from '@/i18n';
 import { estimateReadingTime } from '@/utils/textProcessor';
 
 /** Schrittweite der Tastatursteuerung des Fortschrittsbalkens (Wörter). */
@@ -11,6 +12,7 @@ const KEY_STEP = 10;
  * Per Klick oder Tastatur (←/→, Pos1/Ende am fokussierten Balken) navigierbar.
  */
 export const ProgressBar = memo(function ProgressBar() {
+  const t = useT();
   const dispatch = useReaderDispatch();
   const currentIndex = useReaderSelector((s) => s.currentIndex);
   const startIndex = useReaderSelector((s) => s.startIndex);
@@ -71,11 +73,11 @@ export const ProgressBar = memo(function ProgressBar() {
         onKeyDown={handleKeyDown}
         role="slider"
         tabIndex={0}
-        aria-label="Lesefortschritt"
+        aria-label={t('progress.label')}
         aria-valuemin={1}
         aria-valuemax={Math.max(1, totalWordsInRange)}
         aria-valuenow={Math.max(1, positionInRange)}
-        aria-valuetext={`Wort ${positionInRange} von ${totalWordsInRange}`}
+        aria-valuetext={t('progress.valueText', { position: positionInRange, total: totalWordsInRange })}
       >
         <div
           className="absolute top-0 left-0 h-full bg-blue-500 dark:bg-blue-400 rounded-full"
@@ -85,10 +87,10 @@ export const ProgressBar = memo(function ProgressBar() {
 
       <div className="flex justify-between mt-2 text-sm text-gray-600 dark:text-gray-400">
         <span>
-          Wort {positionInRange.toLocaleString('de-DE')} von {totalWordsInRange.toLocaleString('de-DE')}
+          {t('progress.wordOf', { position: formatNumber(positionInRange), total: formatNumber(totalWordsInRange) })}
         </span>
         <span className="font-medium">{progressPercent}%</span>
-        <span>Verbleibend: {estimateReadingTime(remainingWords, wpm)}</span>
+        <span>{t('progress.remaining', { time: estimateReadingTime(remainingWords, wpm) })}</span>
       </div>
     </div>
   );

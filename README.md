@@ -13,6 +13,9 @@ Chrome-Erweiterung (Manifest V3) zum Schnelllesen von **PDF-, ePub- und Webseite
 - Webseiten: Hauptinhalt oder markierter Text („Aktuelle Seite lesen“ im Popup)
 - Lesebereich per Textauswahl (Start, Ende, Bereich), Sprung zu Satz/Absatz, Tastaturkürzel (Übersicht im Reader)
 - Lesefortschritt je Dokument, Hell-/Dunkelmodus
+- Oberfläche auf Englisch (Standard) und Deutsch, umschaltbar im Popup und im Reader
+- Lange Wörter und mehrere Wörter pro Anzeige werden automatisch so skaliert, dass nichts abgeschnitten wird
+- Dezente Spendenlinks (Ko-fi, Buy Me a Coffee) und ein gekennzeichneter, ausblendbarer Affiliate-Buchtipp im Popup (nur wenn im Build konfiguriert, siehe `.env.example` und `docs/PUBLISHING.md`)
 - Optionale Werbe-Schnittstelle (im Standard-Build aus; nie während des Lesens, mit Ausblenden-Schalter) – siehe `docs/PUBLISHING.md`
 - Datenschutz: keine Content Scripts, keine Host-Berechtigungen; alle Daten bleiben lokal
 
@@ -43,6 +46,9 @@ src/engine       Wiedergabe-Takt und Store
 src/contexts     Reducer, Provider, Theme
 src/hooks        Parser, Viewer, Fortschritt, Tastatur
 src/utils        PDF-/HTML-Textextraktion, Storage, Messaging
+src/i18n         Sprachschicht (en/de)
+src/support      Spenden- und Affiliate-Konfiguration, Buchtipps
+src/ads          Werbe-Schnittstelle
 src/components   UI (RSVP, Viewer, Auswahl)
 src/popup        Erweiterungs-Popup
 src/reader       Reader-Tab

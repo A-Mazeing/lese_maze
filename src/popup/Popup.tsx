@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { SupportSection } from '@/components/support/SupportSection';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { useT } from '@/i18n';
 import { sendRequest } from '@/utils/messaging';
 import { getAllProgress } from '@/utils/storage';
 import { formatProgress } from '@/utils/textProcessor';
@@ -49,6 +52,7 @@ function MenuItem({ title, description, tone, icon, onClick, busy = false, disab
 }
 
 function PopupContent() {
+  const t = useT();
   const [recentBooks, setRecentBooks] = useState<BookProgress[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,10 +86,11 @@ function PopupContent() {
         <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center" aria-hidden="true">
           <span className="text-white font-bold text-xl">R</span>
         </div>
-        <div>
-          <h1 className="font-bold text-lg">RSVP Speed Reader</h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Schneller lesen mit ORP</p>
+        <div className="flex-1 min-w-0">
+          <h1 className="font-bold text-base leading-tight">RSVP Speed Reader</h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{t('popup.tagline')}</p>
         </div>
+        <LanguageSwitcher />
       </div>
 
       {error && (
@@ -96,8 +101,8 @@ function PopupContent() {
 
       <div className="space-y-2">
         <MenuItem
-          title="PDF Reader"
-          description="PDF-Datei laden und lesen"
+          title={t('popup.pdfTitle')}
+          description={t('popup.pdfDesc')}
           tone="red"
           disabled={busy}
           onClick={() => void send({ type: 'OPEN_READER', mode: 'pdf' })}
@@ -108,8 +113,8 @@ function PopupContent() {
           }
         />
         <MenuItem
-          title="ePub Reader"
-          description="ePub-Datei laden und lesen"
+          title={t('popup.epubTitle')}
+          description={t('popup.epubDesc')}
           tone="purple"
           disabled={busy}
           onClick={() => void send({ type: 'OPEN_READER', mode: 'epub' })}
@@ -120,8 +125,8 @@ function PopupContent() {
           }
         />
         <MenuItem
-          title="Aktuelle Seite lesen"
-          description={busy ? 'Wird geladen…' : 'Markierten Text oder Hauptinhalt lesen'}
+          title={t('popup.pageTitle')}
+          description={busy ? t('popup.loading') : t('popup.pageDesc')}
           tone="green"
           busy={busy}
           disabled={busy}
@@ -136,14 +141,14 @@ function PopupContent() {
 
       {recentBooks.length > 0 && (
         <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
-          <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Zuletzt gelesen</h2>
+          <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">{t('popup.recent')}</h2>
           <ul className="space-y-1">
             {recentBooks.map((book) => (
               <li key={book.id}>
                 <button
                   type="button"
                   disabled={busy || book.type === 'page'}
-                  title={book.type === 'page' ? 'Webseiten müssen erneut über „Aktuelle Seite lesen“ geladen werden.' : undefined}
+                  title={book.type === 'page' ? t('popup.pageAgain') : undefined}
                   onClick={() => void send({ type: 'OPEN_READER', mode: book.type === 'epub' ? 'epub' : 'pdf', resumeId: book.id })}
                   className="w-full flex items-center justify-between p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800
                              transition-colors text-left text-sm disabled:opacity-60 disabled:cursor-default"
@@ -159,8 +164,10 @@ function PopupContent() {
         </div>
       )}
 
+      <SupportSection />
+
       <p className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 text-center text-xs text-gray-400 dark:text-gray-500">
-        Leertaste = Wiedergabe/Pause · Pfeiltasten = Navigieren
+        {t('popup.keys')}
       </p>
     </div>
   );

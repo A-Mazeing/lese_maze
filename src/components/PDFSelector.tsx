@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { usePDFParser } from '@/hooks/usePDFParser';
+import { useT } from '@/i18n';
 import { DocumentSelector } from './shared/DocumentSelector';
 import { PDF_CONFIG } from './shared/documentConfigs';
 
@@ -9,6 +10,7 @@ import { PDF_CONFIG } from './shared/documentConfigs';
  * Refactored to use the unified DocumentSelector component.
  */
 export function PDFSelector() {
+  const t = useT();
   const { isLoading, error, fileName, pageCount, currentPage, loadPDF, reset } = usePDFParser();
 
   // Map hook state to DocumentSelector state format
@@ -17,18 +19,18 @@ export function PDFSelector() {
     error,
     fileName,
     loadingProgress: isLoading && pageCount > 0 
-      ? `Lade PDF... Seite ${currentPage} von ${pageCount}` 
+      ? t('pdf.loadingPage', { page: currentPage, total: pageCount })
       : undefined,
-  }), [isLoading, error, fileName, pageCount, currentPage]);
+  }), [isLoading, error, fileName, pageCount, currentPage, t]);
 
   // Metadata to display when file is loaded
   const metadata = useMemo(() => {
     if (!fileName) return undefined;
     return {
       title: fileName,
-      subtitle: `${pageCount} Seiten`,
+      subtitle: t('pdf.pages', { count: pageCount }),
     };
-  }, [fileName, pageCount]);
+  }, [fileName, pageCount, t]);
 
   return (
     <DocumentSelector

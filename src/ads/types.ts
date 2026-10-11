@@ -11,7 +11,7 @@ export interface NativeAd {
   sponsor: string;
   title: string;
   text: string;
-  /** Beschriftung des Links, z. B. „Mehr erfahren“. */
+  /** Beschriftung des Links, z. B. „Mehr erfahren“; leer = Standardtext der Oberfläche. */
   cta: string;
   /** Ziel (nur https). */
   href: string;

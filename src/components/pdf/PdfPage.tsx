@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
+import { t } from '@/i18n';
 import { loadPdfJs } from '@/utils/pdfjs';
 
 /** Maximale Pixelzahl einer Seiten-Canvas (begrenzt den Speicherbedarf bei hohem Zoom). */
@@ -127,7 +128,7 @@ export const PdfPage = memo(function PdfPage({
       } catch (error) {
         if (cancelled || isCancellation(error)) return;
         console.warn(`[pdf] Seite ${pageNumber} konnte nicht dargestellt werden:`, error);
-        setFailure({ scale, message: error instanceof Error ? error.message : 'Unbekannter Fehler' });
+        setFailure({ scale, message: error instanceof Error ? error.message : t('pdfviewer.unknownError') });
       }
     };
     void run();
@@ -181,7 +182,7 @@ export const PdfPage = memo(function PdfPage({
           role="alert"
           className="absolute inset-x-4 top-4 rounded bg-amber-50 px-3 py-2 text-xs text-amber-800 shadow"
         >
-          Seite {pageNumber} konnte nicht dargestellt werden ({failure.message}). Der Text ist weiterhin lesbar.
+          {t('pdfviewer.pageFailed', { page: pageNumber, message: failure.message })}
         </p>
       )}
     </div>

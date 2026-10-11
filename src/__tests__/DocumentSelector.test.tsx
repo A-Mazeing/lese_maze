@@ -22,7 +22,7 @@ describe('DocumentSelector', () => {
         />
       );
 
-      expect(screen.getByText('PDF-Datei hierher ziehen oder klicken zum Auswählen')).toBeInTheDocument();
+      expect(screen.getByText('Drag a PDF file here or click to choose')).toBeInTheDocument();
     });
 
     it('should render drop zone for ePub', () => {
@@ -35,7 +35,7 @@ describe('DocumentSelector', () => {
         />
       );
 
-      expect(screen.getByText('ePub-Datei hierher ziehen oder klicken zum Auswählen')).toBeInTheDocument();
+      expect(screen.getByText('Drag a ePub file here or click to choose')).toBeInTheDocument();
     });
 
     it('should display error message when error is present', () => {
@@ -63,7 +63,7 @@ describe('DocumentSelector', () => {
         />
       );
 
-      expect(screen.getByText('Lade PDF-Datei...')).toBeInTheDocument();
+      expect(screen.getByText('Loading PDF file…')).toBeInTheDocument();
     });
 
     it('should show custom loading progress message', () => {
@@ -74,14 +74,14 @@ describe('DocumentSelector', () => {
             isLoading: true, 
             error: null, 
             fileName: null, 
-            loadingProgress: 'Lade Seite 5 von 10...'
+            loadingProgress: 'Loading page 5 of 10...'
           }}
           onLoadFile={mockOnLoadFile}
           onReset={mockOnReset}
         />
       );
 
-      expect(screen.getByText('Lade Seite 5 von 10...')).toBeInTheDocument();
+      expect(screen.getByText('Loading page 5 of 10...')).toBeInTheDocument();
     });
   });
 
@@ -99,7 +99,7 @@ describe('DocumentSelector', () => {
 
       expect(screen.getByText('Test Document')).toBeInTheDocument();
       expect(screen.getByText('10 Seiten')).toBeInTheDocument();
-      expect(screen.getByText('Entfernen')).toBeInTheDocument();
+      expect(screen.getByText('Remove')).toBeInTheDocument();
     });
 
     it('should call onReset when remove button is clicked', () => {
@@ -113,7 +113,7 @@ describe('DocumentSelector', () => {
         />
       );
 
-      fireEvent.click(screen.getByText('Entfernen'));
+      fireEvent.click(screen.getByText('Remove'));
       expect(mockOnReset).toHaveBeenCalledTimes(1);
     });
 
@@ -143,7 +143,7 @@ describe('DocumentSelector', () => {
         />
       );
 
-      const dropZone = screen.getByText('PDF-Datei hierher ziehen oder klicken zum Auswählen').parentElement!;
+      const dropZone = screen.getByText('Drag a PDF file here or click to choose').parentElement!;
       const pdfFile = new File(['content'], 'test.pdf', { type: 'application/pdf' });
 
       fireEvent.drop(dropZone, {
@@ -163,7 +163,7 @@ describe('DocumentSelector', () => {
         />
       );
 
-      const dropZone = screen.getByText('ePub-Datei hierher ziehen oder klicken zum Auswählen').parentElement!;
+      const dropZone = screen.getByText('Drag a ePub file here or click to choose').parentElement!;
       const epubFile = new File(['content'], 'test.epub', { type: 'application/epub+zip' });
 
       fireEvent.drop(dropZone, {
@@ -185,14 +185,14 @@ describe('DocumentSelector', () => {
         />
       );
 
-      const dropZone = screen.getByText('PDF-Datei hierher ziehen oder klicken zum Auswählen').parentElement!;
+      const dropZone = screen.getByText('Drag a PDF file here or click to choose').parentElement!;
       const wrongFile = new File(['content'], 'test.txt', { type: 'text/plain' });
 
       fireEvent.drop(dropZone, {
         dataTransfer: { files: [wrongFile] }
       });
 
-      expect(screen.getByRole('alert')).toHaveTextContent('Bitte wähle eine PDF-Datei aus.');
+      expect(screen.getByRole('alert')).toHaveTextContent('Please choose a PDF file.');
       expect(alertSpy).not.toHaveBeenCalled(); // kein blockierendes window.alert
       expect(mockOnLoadFile).not.toHaveBeenCalled();
 
@@ -211,7 +211,7 @@ describe('DocumentSelector', () => {
         />
       );
 
-      const dropZone = screen.getByText('PDF-Datei hierher ziehen oder klicken zum Auswählen').parentElement!;
+      const dropZone = screen.getByText('Drag a PDF file here or click to choose').parentElement!;
       
       fireEvent.dragOver(dropZone);
       
@@ -229,7 +229,7 @@ describe('DocumentSelector', () => {
         />
       );
 
-      const dropZone = screen.getByText('PDF-Datei hierher ziehen oder klicken zum Auswählen').parentElement!;
+      const dropZone = screen.getByText('Drag a PDF file here or click to choose').parentElement!;
       
       fireEvent.dragOver(dropZone);
       fireEvent.dragLeave(dropZone);
@@ -244,7 +244,7 @@ describe('DocumentSelector', () => {
       expect(PDF_CONFIG.mimeType).toBe('application/pdf');
       expect(PDF_CONFIG.extension).toBe('.pdf');
       expect(PDF_CONFIG.color).toBe('green');
-      expect(PDF_CONFIG.label).toBe('PDF-Datei');
+      expect(PDF_CONFIG.label).toBe('PDF file');
     });
 
     it('EPUB_CONFIG should have correct properties', () => {
@@ -252,7 +252,7 @@ describe('DocumentSelector', () => {
       expect(EPUB_CONFIG.mimeType).toBe('application/epub+zip');
       expect(EPUB_CONFIG.extension).toBe('.epub');
       expect(EPUB_CONFIG.color).toBe('purple');
-      expect(EPUB_CONFIG.label).toBe('ePub-Datei');
+      expect(EPUB_CONFIG.label).toBe('ePub file');
     });
   });
 });

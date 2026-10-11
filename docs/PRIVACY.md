@@ -18,6 +18,7 @@ Analyse- oder Tracking-Dienste und keine Weitergabe deiner Texte.
 | Einstellungen (Tempo, Design, …) | Komfort | `chrome.storage.local` | keine |
 | Lesefortschritt (Titel, Position, Zeitpunkt; max. 50 Einträge) | Weiterlesen | `chrome.storage.local` | keine |
 | Werbeeinstellung und Tageszähler | Werbung ausblenden/begrenzen | `chrome.storage.local` | keine |
+| Sprache, „Buchtipps anzeigen“ | Komfort | `chrome.storage.local` | keine |
 
 Der Lesefortschritt enthält den Dateinamen bzw. Seitentitel, nicht den Text. Alle lokalen Daten löschst du durch Entfernen der
 Erweiterung.
@@ -31,6 +32,15 @@ Zum Anzeigen ruft die Erweiterung eine Anzeigenliste von **[Domain des Feeds]** 
 erhält dieser Server technisch bedingt deine **IP-Adresse** und den Zeitpunkt der Anfrage. Es werden keine Texte, Dateinamen
 oder Lesedaten übertragen. Beim Klick auf eine Anzeige öffnet sich die Seite des Werbetreibenden in einem neuen Tab; dort
 gilt dessen Datenschutzerklärung. [Zusatz, falls Iframe-Anzeigen eines Netzwerks verwendet werden: Anbieter, Zweck, Rechtsgrundlage.]
+
+## Spenden und Buchtipps
+
+Im Popup können Links zu Spendenseiten (Ko-fi, Buy Me a Coffee) und ein als „Anzeige“ gekennzeichneter Buchtipp mit
+Affiliate-Links (Amazon, Thalia, Bookbeat) stehen. Die Erweiterung lädt davon nichts vor und überträgt keine Daten. Erst wenn du
+einen Link anklickst, öffnet sich die Seite des Anbieters in einem neuen Tab; ab dann gelten dessen Datenschutzerklärung und
+Cookies. Wenn du über einen Affiliate-Link kaufst, erhalte ich vom Shop eine kleine Provision; der Preis ändert sich nicht. Die
+Auswahl der Tipps ist unabhängig von deinen Texten. Den Buchtipp kannst du über „Ausblenden“ abschalten (Einstellung lokal
+gespeichert). Zusätzlich speichert die Erweiterung deine Sprachwahl (`chrome.storage.local`).
 
 ## Rechtsgrundlagen und Rechte (DSGVO)
 

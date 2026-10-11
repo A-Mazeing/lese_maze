@@ -13,6 +13,7 @@ import {
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { useReaderDispatch, useReaderSelector, useReaderStore } from '@/contexts/ReaderContext';
 import { getEffectiveEnd } from '@/contexts/readerReducer';
+import { useT } from '@/i18n';
 import { useViewerSelection } from '@/hooks/useViewerSelection';
 import { ViewerContextMenu, type WordRange } from '@/components/shared/ViewerContextMenu';
 import {
@@ -104,6 +105,7 @@ export const WordViewer = forwardRef<WordViewerHandle, WordViewerProps>(function
   { sections, className = '', onStartReading },
   ref,
 ) {
+  const t = useT();
   const words = useReaderSelector((s) => s.words);
   const isPlaying = useReaderSelector((s) => s.isPlaying);
   const currentIndex = useReaderSelector((s) => s.currentIndex);
@@ -259,7 +261,7 @@ export const WordViewer = forwardRef<WordViewerHandle, WordViewerProps>(function
   if (words.length === 0) {
     return (
       <div className={`flex items-center justify-center text-gray-500 dark:text-gray-400 ${className}`}>
-        Kein Text vorhanden.
+        {t('viewer.noText')}
       </div>
     );
   }
@@ -300,7 +302,7 @@ export const WordViewer = forwardRef<WordViewerHandle, WordViewerProps>(function
           className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 text-sm rounded-full shadow-lg
                      bg-blue-600 text-white hover:bg-blue-700 transition-colors"
         >
-          Zur aktuellen Stelle
+          {t('viewer.jumpToCurrent')}
         </button>
       )}
 

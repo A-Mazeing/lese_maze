@@ -1,4 +1,5 @@
 import { useReaderDispatch, useReaderSelector } from '@/contexts/ReaderContext';
+import { useT } from '@/i18n';
 
 interface WordsPerChunkControlProps {
   compact?: boolean;
@@ -9,11 +10,12 @@ interface WordsPerChunkControlProps {
  * Ermöglicht die Einstellung, wie viele Wörter gleichzeitig im RSVP-Modus angezeigt werden.
  */
 export function WordsPerChunkControl({ compact = false }: WordsPerChunkControlProps) {
+  const t = useT();
   const wordsPerChunk = useReaderSelector((s) => s.wordsPerChunk);
   const dispatch = useReaderDispatch();
   const setWordsPerChunk = (count: number) => dispatch({ type: 'SET_WORDS_PER_CHUNK', payload: count });
 
-  const label = wordsPerChunk === 1 ? 'Wort' : 'Wörter';
+  const label = wordsPerChunk === 1 ? t('chunk.word_one') : t('chunk.word_other');
 
   if (compact) {
     return (
@@ -29,7 +31,7 @@ export function WordsPerChunkControl({ compact = false }: WordsPerChunkControlPr
           step={1}
           value={wordsPerChunk}
           onChange={(e) => setWordsPerChunk(Number(e.target.value))}
-          aria-label="Wörter pro Anzeige"
+          aria-label={t('chunk.label')}
           className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer
                      accent-blue-500 dark:accent-blue-400"
         />
@@ -50,7 +52,7 @@ export function WordsPerChunkControl({ compact = false }: WordsPerChunkControlPr
         step={1}
         value={wordsPerChunk}
         onChange={(e) => setWordsPerChunk(Number(e.target.value))}
-        aria-label="Wörter pro Anzeige"
+        aria-label={t('chunk.label')}
         className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer
                    accent-blue-500 dark:accent-blue-400"
       />
@@ -60,7 +62,7 @@ export function WordsPerChunkControl({ compact = false }: WordsPerChunkControlPr
           onClick={() => setWordsPerChunk(Math.max(1, wordsPerChunk - 1))}
           className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 
                      dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
-          aria-label="Weniger Wörter"
+          aria-label={t('chunk.fewer')}
           disabled={wordsPerChunk <= 1}
         >
           -1
@@ -69,7 +71,7 @@ export function WordsPerChunkControl({ compact = false }: WordsPerChunkControlPr
           onClick={() => setWordsPerChunk(Math.min(4, wordsPerChunk + 1))}
           className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 
                      dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
-          aria-label="Mehr Wörter"
+          aria-label={t('chunk.more')}
           disabled={wordsPerChunk >= 4}
         >
           +1

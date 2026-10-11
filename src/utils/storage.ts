@@ -188,6 +188,11 @@ export async function readStoredValue(key: string): Promise<unknown> {
   }
 }
 
+/** Schreibt einen beliebigen Wert (serialisiert). */
+export function writeStoredValue(key: string, value: unknown): Promise<void> {
+  return serialize(() => getBackend().write(key, value));
+}
+
 /** Liest, ändert und schreibt einen Wert atomar (serialisiert mit allen anderen Schreibzugriffen). */
 export function updateStoredValue(key: string, update: (current: unknown) => unknown): Promise<void> {
   return serialize(async () => {

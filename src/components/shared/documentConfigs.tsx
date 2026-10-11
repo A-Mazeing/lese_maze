@@ -1,3 +1,4 @@
+import { t } from '@/i18n';
 import type { DocumentTypeConfig } from './DocumentSelector';
 
 /** Vorkonfigurierte Dokumenttypen für PDF und ePub. */
@@ -7,7 +8,10 @@ export const PDF_CONFIG: DocumentTypeConfig = {
   mimeType: 'application/pdf',
   extension: '.pdf',
   color: 'green',
-  label: 'PDF-Datei',
+  // Getter: wird bei jedem Rendern in der aktuellen Sprache ausgewertet.
+  get label() {
+    return t('doc.pdfFile');
+  },
   icon: (
     <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
@@ -27,7 +31,9 @@ export const EPUB_CONFIG: DocumentTypeConfig = {
   mimeType: 'application/epub+zip',
   extension: '.epub',
   color: 'purple',
-  label: 'ePub-Datei',
+  get label() {
+    return t('doc.epubFile');
+  },
   icon: (
     <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 

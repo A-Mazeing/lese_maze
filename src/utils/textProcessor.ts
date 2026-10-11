@@ -1,3 +1,4 @@
+import { t } from '@/i18n';
 import { cleanText } from './cleanText';
 import { extractTextInReadingOrder } from './htmlText';
 
@@ -170,19 +171,19 @@ export function extractTextFromHTML(html: string): string {
 
 /** Schätzt die Lesezeit basierend auf Wortanzahl und WPM. */
 export function estimateReadingTime(wordCount: number, wpm: number): string {
-  if (wordCount <= 0 || wpm <= 0) return 'Weniger als 1 Minute';
+  if (wordCount <= 0 || wpm <= 0) return t('time.lessThanMinute');
   const minutes = Math.ceil(wordCount / wpm);
 
-  if (minutes <= 1) return minutes < 1 ? 'Weniger als 1 Minute' : '1 Minute';
-  if (minutes < 60) return `${minutes} Minuten`;
+  if (minutes <= 1) return minutes < 1 ? t('time.lessThanMinute') : t('time.oneMinute');
+  if (minutes < 60) return t('time.minutes', { n: minutes });
 
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
 
   if (remainingMinutes === 0) {
-    return hours === 1 ? '1 Stunde' : `${hours} Stunden`;
+    return hours === 1 ? t('time.oneHour') : t('time.hours', { n: hours });
   }
-  return `${hours}h ${remainingMinutes}min`;
+  return t('time.hoursMinutes', { h: hours, m: remainingMinutes });
 }
 
 /** Formatiert einen Fortschritt als Prozent-String. */

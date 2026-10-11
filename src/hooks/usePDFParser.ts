@@ -4,6 +4,7 @@ import { openPdf, PdfLoadError, type PdfDocumentHandle } from '@/utils/pdfjs';
 import { buildPageText, type PdfTextItemLike } from '@/utils/pdfText';
 import { cleanText, tokenizeText, tokenizeTextWithStructure } from '@/utils/textProcessor';
 import { fingerprintWords, generateDocumentId } from '@/utils/storage';
+import { t } from '@/i18n';
 
 /** Größenlimit, ab dem ein PDF abgelehnt wird (schützt vor Speicherüberlauf der Extension). */
 export const MAX_PDF_BYTES = 200 * 1024 * 1024;
@@ -109,7 +110,7 @@ export function usePDFParser() {
       };
 
       if (file.size > MAX_PDF_BYTES) {
-        const error = `Die Datei ist zu groß (maximal ${Math.round(MAX_PDF_BYTES / 1024 / 1024)} MB).`;
+        const error = t('load.tooLarge', { mb: Math.round(MAX_PDF_BYTES / 1024 / 1024) });
         update({ isLoading: false, error, fileName: file.name });
         return { success: false, error };
       }
@@ -120,7 +121,7 @@ export function usePDFParser() {
 
       try {
         const buffer = await file.arrayBuffer();
-        if (signal.aborted) throw new PdfLoadError('Das Laden wurde abgebrochen.', 'aborted');
+        if (signal.aborted) throw new PdfLoadError(t('load.aborted'), 'aborted');
 
         pdf = await openPdf(buffer, { signal });
         updateIfCurrent({ pageCount: pdf.numPages });
@@ -128,7 +129,7 @@ export function usePDFParser() {
         const pageTexts: string[] = [];
         const pageSizes: PdfDocumentHandle['pageSizes'][number][] = [];
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-          if (signal.aborted) throw new PdfLoadError('Das Laden wurde abgebrochen.', 'aborted');
+          if (signal.aborted) throw new PdfLoadError(t('load.aborted'), 'aborted');
           updateIfCurrent({ currentPage: pageNumber });
 
           const page = await pdf.getPage(pageNumber);
@@ -144,12 +145,10 @@ export function usePDFParser() {
 
         const extracted = assemblePdfText(pageTexts);
         if (extracted.words.length === 0) {
-          throw new Error(
-            'Im PDF wurde kein lesbarer Text gefunden. Gescannte Dokumente (nur Bilder) benötigen vorher eine Texterkennung (OCR).',
-          );
+          throw new Error(t('pdf.noText'));
         }
 
-        if (signal.aborted) throw new PdfLoadError('Das Laden wurde abgebrochen.', 'aborted');
+        if (signal.aborted) throw new PdfLoadError(t('load.aborted'), 'aborted');
 
         // Das geöffnete PDF übernimmt der Kontext (Seitenansicht); das vorherige wird beendet.
         setPdf({ document: pdf, pageSizes });
@@ -177,7 +176,7 @@ export function usePDFParser() {
         if (error instanceof PdfLoadError && error.code === 'aborted') {
           return { success: false, error: error.message };
         }
-        const message = error instanceof Error ? error.message : 'Fehler beim Laden des PDFs.';
+        const message = error instanceof Error ? error.message : t('pdf.loadFailed');
         updateIfCurrent({ isLoading: false, error: message });
         return { success: false, error: message };
       } finally {

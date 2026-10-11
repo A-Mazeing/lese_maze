@@ -19,8 +19,7 @@ Stand der Richtlinien: Oktober 2026. Die Regeln ändern sich – vor dem Einreic
 
 ### Sehr empfehlenswert
 
-* **Englische Oberfläche.** Alle Texte sind Deutsch und fest im Code. Für Store-Reichweite mindestens Deutsch + Englisch
-  (`_locales/de|en/messages.json` für Name/Beschreibung; für die Oberfläche eine kleine i18n-Schicht).
+* ~~Englische Oberfläche~~ – erledigt: Englisch ist Standard, Deutsch wählbar (`src/i18n/`, `public/_locales/`; siehe Abschnitt 3b).
 * **Erste Schritte:** kurzer Willkommenshinweis beim ersten Start (Quelle wählen, Leertaste, Tastenkürzel).
 * **Tastenkürzel und Kontextmenü:** `commands` (z. B. Alt+R: Seite lesen) und „Mit RSVP lesen“ für markierten Text
   (`contextMenus`-Berechtigung; im Store begründen).
@@ -115,22 +114,63 @@ wird reihum gewechselt.
 
 * **Direkt vermittelte oder eigene Anzeigen** (Buchshops, Lern- und Leseangebote, Hörbücher): hohe Relevanz, kein Netzwerk nötig.
   Mit dieser Schnittstelle sofort möglich.
-* **Affiliate-Links zu E-Books** auf der Startseite („Neue Lektüre finden“): nützlich statt aufdringlich; Offenlegung und Richtlinie beachten.
+* **Affiliate-Links zu E-Books**: umgesetzt als gekennzeichneter Buchtipp im Popup (Abschnitt 3a).
 * **Werbenetzwerke** nur über eine eigene Webseite im Sandbox-Iframe (`kind: "frame"`) und nur, wenn deren Bedingungen
   Erweiterungen zulassen – vorher beim Anbieter nachfragen (bei AdSense nicht möglich).
 * Nicht empfehlenswert: Popup, Anzeigen während des Lesens, Zwischenseiten, Anzeigen auf fremden Webseiten (Risiko eines Richtlinienverstoßes).
 
 ### Alternativen und Ergänzungen zur Werbung
 
-* Spendenlink (GitHub Sponsors, Ko-fi, Buy Me a Coffee) auf der Startseite oder im Store-Eintrag.
+* Spendenlink (Ko-fi, Buy Me a Coffee): umgesetzt im Popup (Abschnitt 3a); zusätzlich im Store-Eintrag erwähnbar.
 * **Pro-Version / werbefrei** per Einmalkauf: Der Store hat sein eigenes Bezahlsystem eingestellt; üblich sind Stripe, Lemon
   Squeezy oder Dienste wie ExtensionPay. Ein Lizenzstatus lässt sich zentral in `src/ads/policy.ts` einbinden
   (z. B. `config.enabled && state.enabled && !licensed`).
 
+## 3a. Spenden und Affiliate-Buchtipps im Popup
+
+Beides liegt in `src/support/` bzw. `src/components/support/SupportSection.tsx` und erscheint **nur, wenn es im Build
+konfiguriert ist** (ohne Variablen bleibt das Popup unverändert). Die Variablen stehen in `.env.example`.
+
+| Variable | Wirkung |
+|----------|---------|
+| `VITE_SUPPORT_KOFI_URL`, `VITE_SUPPORT_BMC_URL` | Spendenlinks. Nur `https://ko-fi.com/…` bzw. `https://(www.)buymeacoffee.com/…` werden akzeptiert. |
+| `VITE_AFFILIATE_AMAZON_TAG`, `VITE_AFFILIATE_AMAZON_DOMAIN` | Amazon-Partner-ID und Marktplatz (Standard `amazon.de`). Link: `https://www.amazon.de/s?k=<Titel>&tag=<ID>`. |
+| `VITE_AFFILIATE_THALIA_TEMPLATE`, `VITE_AFFILIATE_BOOKBEAT_TEMPLATE` | Deeplink-Vorlage des Partnerprogramms (meist über Awin). `{url}` wird durch die kodierte Suchseite des Shops ersetzt, `{query}` durch den kodierten Suchbegriff. Ohne gültige Vorlage erscheint der Shop nicht (ohne Partner-ID wäre es auch kein Affiliate-Link). |
+
+**Transparenz (bewusst eingebaut, nicht abschalten):**
+
+* Der Buchtipp ist als „Anzeige · Buchtipp“ (en: „Ad · Book tip“) gekennzeichnet und enthält den Hinweis, dass bei einem Kauf eine
+  Provision anfällt und der Preis gleich bleibt. Bei Amazon steht zusätzlich der vorgeschriebene Satz „Als Amazon-Partner verdiene ich
+  an qualifizierenden Verkäufen.“ Links tragen `rel="sponsored noopener noreferrer"`, haben sichtbare Shop-Namen und öffnen erst auf Klick
+  in einem neuen Tab. Es wird nichts vorgeladen, kein Link auf Webseiten verändert, kein Cookie gesetzt.
+* Die Auswahl ist handverlesen (`src/support/books.ts`, ein Tipp pro Tag) und nutzt keine Lesedaten – es wird nichts übertragen.
+* „Ausblenden“ entfernt den Tipp dauerhaft (lokal gespeichert, jederzeit wieder einblendbar). Die Spendenlinks sind keine Werbung.
+
+**Vor dem Einsatz klären:**
+
+1. Bei den Programmen anmelden (Amazon PartnerNet, Thalia und Bookbeat meist über Awin) und die Erweiterung dort als Werbefläche
+   angeben. Die Programmbedingungen ausdrücklich lesen: Amazon beschränkt, wo Links stehen dürfen (Webseiten und genehmigte Apps),
+   und verlangt Kennzeichnung sowie ein Konto mit tatsächlicher Webseite. Eine Erweiterung ist ein Grenzfall – am besten
+   die Webseite zur Erweiterung (mit Datenschutzerklärung) im Konto hinterlegen und den Support fragen. Die Standardziele der
+   Suchseiten (`THALIA_SEARCH`, `BOOKBEAT_SEARCH` in `src/support/config.ts`) vor dem Einsatz prüfen und bei Bedarf anpassen.
+2. Chrome Web Store: Affiliate-Links sind erlaubt, wenn sie offengelegt sind und die Erweiterung ihren Hauptzweck behält; keine
+   Veränderung von Links auf fremden Seiten (ist hier ausgeschlossen). Im Eintrag „Enthält Werbung / Affiliate-Links“ erwähnen.
+3. Deutschland: Als Werbung kennzeichnen (erfüllt), Impressum und Datenschutzerklärung auf der Projektseite, Einnahmen sind steuerpflichtig.
+4. Spendenanbieter prüfen (Ko-fi und Buy Me a Coffee sind externe Seiten mit eigener Datenschutzerklärung; beim Klick verlässt der Nutzer die App).
+
+## 3b. Sprache
+
+Englisch ist die Standardsprache, Deutsch ist über den Umschalter („EN | DE“) im Popup und im Reader wählbar. Die Wahl wird unter
+`rsvp_language` gespeichert und wirkt sofort in allen offenen Erweiterungsseiten (auch Fehlermeldungen des Service Workers).
+Texte: `src/i18n/en.ts` (Quelle, definiert die Schlüssel) und `src/i18n/de.ts` (vom Typ her vollständig; ein Test prüft Schlüssel
+und Platzhalter). Name, Beschreibung und Symbol-Tooltip des Stores liegen in `public/_locales/{en,de}/messages.json` (folgen der
+Chrome-Sprache). Weitere Sprache: Datei ergänzen, `Language`/`LANGUAGES`/`MESSAGES` in `src/i18n/index.ts` erweitern.
+
 ## 4. Checkliste vor dem Einreichen
 
 - [ ] `npm run check` und `npm run build` fehlerfrei; Version erhöht
-- [ ] Store-Build mit den gewünschten `VITE_ADS_*`-Variablen, ohne `VITE_ADS_DEMO`
+- [ ] Store-Build mit den gewünschten `VITE_ADS_*`-, `VITE_SUPPORT_*`- und `VITE_AFFILIATE_*`-Variablen, ohne `VITE_ADS_DEMO`
+- [ ] Affiliate-Programme angemeldet, Bedingungen gelesen, Links einmal von Hand getestet (Provision wird getrackt)
 - [ ] Datenschutzerklärung und Impressum online, URL im Dashboard
 - [ ] Datennutzung, Einzelzweck und Berechtigungs-Begründungen ausgefüllt
 - [ ] Screenshots, Kachel, Beschreibungen (de/en)

@@ -10,6 +10,7 @@ import {
 import { collectDomWords, type DomWord } from '@/utils/htmlText';
 import { createWordRange, findWordAtPoint, selectionToWordSpan, type WordSpan } from '@/utils/epubWordMap';
 import type { Chapter } from '@/types';
+import { t } from '@/i18n';
 
 /** Name der CSS-Hervorhebung im Buch-iframe (CSS Custom Highlight API). */
 const HIGHLIGHT_NAME = 'rsvp-current';
@@ -232,11 +233,11 @@ export function useEPubViewer(callbacks: EPubViewerCallbacks = {}) {
       const startChapter = chapterForWord(chaptersRef.current, store.getState().currentIndex);
       Promise.resolve(rendition.display(startChapter?.spineIndex ?? 0)).catch((error: unknown) => {
         if (disposed) return;
-        const message = error instanceof Error ? error.message : 'Das Kapitel konnte nicht angezeigt werden.';
+        const message = error instanceof Error ? error.message : t('epub.chapterFailed');
         setStatus({ phase: 'error', error: message, spineIndex: -1 });
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Der ePub-Viewer konnte nicht gestartet werden.';
+      const message = error instanceof Error ? error.message : t('epub.viewerFailed');
       // Asynchron melden: kein setState im synchronen Teil des Effekts.
       queueMicrotask(() => {
         if (!disposed) setStatus({ phase: 'error', error: message, spineIndex: -1 });

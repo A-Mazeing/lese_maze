@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useEPubParser } from '@/hooks/useEPubParser';
+import { useT } from '@/i18n';
 import { useReaderSelector } from '@/contexts/ReaderContext';
 import { DocumentSelector } from './shared/DocumentSelector';
 import { EPUB_CONFIG } from './shared/documentConfigs';
@@ -10,6 +11,7 @@ import { EPUB_CONFIG } from './shared/documentConfigs';
  * Refactored to use the unified DocumentSelector component.
  */
 export function EPubSelector() {
+  const t = useT();
   const { isLoading, error, fileName, title, author, progressDone, progressTotal, loadEPub, reset } = useEPubParser();
 
   const chapterCount = useReaderSelector((s) => s.metadata.chapters?.length ?? 0);
@@ -20,18 +22,18 @@ export function EPubSelector() {
     error,
     fileName,
     loadingProgress: isLoading && progressTotal > 0
-      ? `Lade ePub... Abschnitt ${Math.min(progressDone + 1, progressTotal)} von ${progressTotal}`
+      ? t('epub.loadingSection', { done: Math.min(progressDone + 1, progressTotal), total: progressTotal })
       : undefined,
-  }), [isLoading, error, fileName, progressDone, progressTotal]);
+  }), [isLoading, error, fileName, progressDone, progressTotal, t]);
 
   // Metadata to display when file is loaded
   const metadata = useMemo(() => {
     if (!fileName) return undefined;
     return {
       title: title || fileName,
-      subtitle: `${author || 'Unbekannter Autor'} • ${chapterCount} Kapitel`,
+      subtitle: `${author || t('epub.unknownAuthor')} • ${t('epub.chapters', { count: chapterCount })}`,
     };
-  }, [fileName, title, author, chapterCount]);
+  }, [fileName, title, author, chapterCount, t]);
 
   return (
     <DocumentSelector

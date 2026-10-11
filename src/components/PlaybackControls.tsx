@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { useReaderDispatch, useReaderSelector, useReaderStore } from '@/contexts/ReaderContext';
 import { getEffectiveEnd } from '@/contexts/readerReducer';
+import { useT } from '@/i18n';
 
 interface PlaybackControlsProps {
   size?: 'sm' | 'md';
@@ -34,6 +35,7 @@ function IconButton({ label, title, onClick, disabled, className, children }: Ic
 
 /** Play/Pause/Skip-Schaltflächen. */
 export const PlaybackControls = memo(function PlaybackControls({ size = 'md' }: PlaybackControlsProps) {
+  const t = useT();
   const isPlaying = useReaderSelector((s) => s.isPlaying);
   const disabled = useReaderSelector((s) => s.words.length === 0);
   const dispatch = useReaderDispatch();
@@ -49,8 +51,8 @@ export const PlaybackControls = memo(function PlaybackControls({ size = 'md' }: 
   return (
     <div className="flex items-center justify-center gap-2">
       <IconButton
-        label="Zum Anfang"
-        title="Zum Anfang (Pos1)"
+        label={t('playback.toStart')}
+        title={t('playback.toStartTitle')}
         disabled={disabled}
         className={ghost}
         onClick={() => dispatch({ type: 'SET_INDEX', payload: store.getState().startIndex })}
@@ -61,8 +63,8 @@ export const PlaybackControls = memo(function PlaybackControls({ size = 'md' }: 
       </IconButton>
 
       <IconButton
-        label={`${SKIP_WORDS} Wörter zurück`}
-        title={`${SKIP_WORDS} Wörter zurück`}
+        label={t('playback.skipBack', { n: SKIP_WORDS })}
+        title={t('playback.skipBack', { n: SKIP_WORDS })}
         disabled={disabled}
         className={ghost}
         onClick={() => dispatch({ type: 'SKIP_BACKWARD', payload: SKIP_WORDS })}
@@ -73,8 +75,8 @@ export const PlaybackControls = memo(function PlaybackControls({ size = 'md' }: 
       </IconButton>
 
       <IconButton
-        label={isPlaying ? 'Pause' : 'Wiedergabe'}
-        title={isPlaying ? 'Pause (Leertaste)' : 'Wiedergabe (Leertaste)'}
+        label={isPlaying ? t('playback.pause') : t('playback.play')}
+        title={isPlaying ? t('playback.pauseTitle') : t('playback.playTitle')}
         disabled={disabled}
         className={playClass}
         onClick={() => dispatch({ type: 'TOGGLE_PLAY' })}
@@ -85,8 +87,8 @@ export const PlaybackControls = memo(function PlaybackControls({ size = 'md' }: 
       </IconButton>
 
       <IconButton
-        label={`${SKIP_WORDS} Wörter vor`}
-        title={`${SKIP_WORDS} Wörter vor`}
+        label={t('playback.skipForward', { n: SKIP_WORDS })}
+        title={t('playback.skipForward', { n: SKIP_WORDS })}
         disabled={disabled}
         className={ghost}
         onClick={() => dispatch({ type: 'SKIP_FORWARD', payload: SKIP_WORDS })}
@@ -97,8 +99,8 @@ export const PlaybackControls = memo(function PlaybackControls({ size = 'md' }: 
       </IconButton>
 
       <IconButton
-        label="Zum Ende"
-        title="Zum Ende (Ende)"
+        label={t('playback.toEnd')}
+        title={t('playback.toEndTitle')}
         disabled={disabled}
         className={ghost}
         onClick={() => dispatch({ type: 'SET_INDEX', payload: getEffectiveEnd(store.getState()) })}

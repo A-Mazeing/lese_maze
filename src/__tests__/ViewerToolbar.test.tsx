@@ -19,15 +19,15 @@ describe('ViewerToolbar Components', () => {
         />
       );
       
-      expect(screen.getByLabelText('Zurück')).toBeInTheDocument();
-      expect(screen.getByLabelText('Weiter')).toBeInTheDocument();
+      expect(screen.getByLabelText('Back')).toBeInTheDocument();
+      expect(screen.getByLabelText('Next')).toBeInTheDocument();
     });
 
     it('should call onPrev when prev button is clicked', () => {
       const onPrev = vi.fn();
       render(<NavigationButtons onPrev={onPrev} onNext={vi.fn()} />);
       
-      fireEvent.click(screen.getByLabelText('Zurück'));
+      fireEvent.click(screen.getByLabelText('Back'));
       
       expect(onPrev).toHaveBeenCalledTimes(1);
     });
@@ -36,7 +36,7 @@ describe('ViewerToolbar Components', () => {
       const onNext = vi.fn();
       render(<NavigationButtons onPrev={vi.fn()} onNext={onNext} />);
       
-      fireEvent.click(screen.getByLabelText('Weiter'));
+      fireEvent.click(screen.getByLabelText('Next'));
       
       expect(onNext).toHaveBeenCalledTimes(1);
     });
@@ -50,7 +50,7 @@ describe('ViewerToolbar Components', () => {
         />
       );
       
-      expect(screen.getByLabelText('Zurück')).toBeDisabled();
+      expect(screen.getByLabelText('Back')).toBeDisabled();
     });
 
     it('should disable next button when nextDisabled is true', () => {
@@ -62,7 +62,7 @@ describe('ViewerToolbar Components', () => {
         />
       );
       
-      expect(screen.getByLabelText('Weiter')).toBeDisabled();
+      expect(screen.getByLabelText('Next')).toBeDisabled();
     });
   });
 
@@ -109,7 +109,7 @@ describe('ViewerToolbar Components', () => {
     it('should render with default label', () => {
       render(<StartReadingButton onClick={vi.fn()} />);
       
-      expect(screen.getByText('Lesen starten')).toBeInTheDocument();
+      expect(screen.getByText('Start reading')).toBeInTheDocument();
     });
 
     it('should render with custom label', () => {
@@ -122,7 +122,7 @@ describe('ViewerToolbar Components', () => {
       const onClick = vi.fn();
       render(<StartReadingButton onClick={onClick} />);
       
-      fireEvent.click(screen.getByText('Lesen starten'));
+      fireEvent.click(screen.getByText('Start reading'));
       
       expect(onClick).toHaveBeenCalledTimes(1);
     });
@@ -130,7 +130,7 @@ describe('ViewerToolbar Components', () => {
     it('should be disabled when disabled prop is true', () => {
       render(<StartReadingButton onClick={vi.fn()} disabled={true} />);
       
-      expect(screen.getByText('Lesen starten')).toBeDisabled();
+      expect(screen.getByText('Start reading')).toBeDisabled();
     });
   });
 
@@ -143,8 +143,8 @@ describe('ViewerToolbar Components', () => {
     it('should render navigation buttons', () => {
       render(<ViewerToolbar navigation={defaultNavigation} />);
       
-      expect(screen.getByLabelText('Zurück')).toBeInTheDocument();
-      expect(screen.getByLabelText('Weiter')).toBeInTheDocument();
+      expect(screen.getByLabelText('Back')).toBeInTheDocument();
+      expect(screen.getByLabelText('Next')).toBeInTheDocument();
     });
 
     it('should render page info when provided', () => {
@@ -166,7 +166,7 @@ describe('ViewerToolbar Components', () => {
         />
       );
       
-      expect(screen.getByText('Lesen starten')).toBeInTheDocument();
+      expect(screen.getByText('Start reading')).toBeInTheDocument();
     });
 
     it('should render children in center section', () => {
@@ -204,7 +204,7 @@ describe('ViewerToolbar Components', () => {
         />
       );
       
-      expect(screen.getByText(/Lesebereich: Wort 11/)).toBeInTheDocument();
+      expect(screen.getByText(/Reading range: word 11/)).toBeInTheDocument();
     });
 
     it('should render when end index is set', () => {
@@ -217,7 +217,7 @@ describe('ViewerToolbar Components', () => {
         />
       );
       
-      expect(screen.getByText(/bis 501/)).toBeInTheDocument();
+      expect(screen.getByText(/to 501/)).toBeInTheDocument();
     });
 
     it('should call onReset when reset button is clicked', () => {
@@ -231,7 +231,7 @@ describe('ViewerToolbar Components', () => {
         />
       );
       
-      fireEvent.click(screen.getByText('Zurücksetzen'));
+      fireEvent.click(screen.getByText('Reset'));
       
       expect(onReset).toHaveBeenCalledTimes(1);
     });

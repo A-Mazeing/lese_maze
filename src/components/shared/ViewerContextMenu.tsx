@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { formatNumber, useT } from '@/i18n';
 
 /**
  * Word range for selection context
@@ -53,6 +54,7 @@ export function ViewerContextMenu({
   customActions,
   showWordRange = true,
 }: ViewerContextMenuProps) {
+  const t = useT();
   const menuRef = useRef<HTMLDivElement>(null);
   // Position wird beim Rendern abgeleitet (kein State + Effekt nötig).
   const adjustedPosition = useMemo(() => adjustMenuPosition(position.x, position.y), [position.x, position.y]);
@@ -93,13 +95,13 @@ export function ViewerContextMenu({
       style={{ left: adjustedPosition.x, top: adjustedPosition.y }}
       onClick={(e) => e.stopPropagation()}
       role="menu"
-      aria-label="Aktionen für die Textauswahl"
+      aria-label={t('menu.label')}
     >
       {/* Header with word range */}
       {showWordRange && (
         <div className="px-3 py-1 text-xs text-gray-500 dark:text-gray-400 border-b 
                         border-gray-200 dark:border-gray-700 mb-1">
-          Wörter {selectedRange.start + 1} - {selectedRange.end + 1}
+          {t('menu.range', { from: formatNumber(selectedRange.start + 1), to: formatNumber(selectedRange.end + 1) })}
         </div>
       )}
       
@@ -114,7 +116,7 @@ export function ViewerContextMenu({
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
           <path d="M8 5v14l11-7z" />
         </svg>
-        Auswahl im RSVP starten
+        {t('menu.read')}
       </button>
       
       <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
@@ -129,7 +131,7 @@ export function ViewerContextMenu({
         <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
         </svg>
-        Von hier starten
+        {t('menu.start')}
       </button>
       
       {/* Set end point */}
@@ -142,7 +144,7 @@ export function ViewerContextMenu({
         <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
         </svg>
-        Hier enden
+        {t('menu.end')}
       </button>
       
       {/* Set range */}
@@ -155,7 +157,7 @@ export function ViewerContextMenu({
         <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
         </svg>
-        Lesebereich setzen
+        {t('menu.setRange')}
       </button>
 
       {/* Custom actions slot */}

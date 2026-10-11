@@ -3,6 +3,7 @@ import { useReaderDispatch, useReaderSelector } from '@/contexts/ReaderContext';
 import { getEffectiveEnd } from '@/contexts/readerReducer';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePdfViewer } from '@/hooks/usePdfViewer';
+import { useT } from '@/i18n';
 import { useViewerSelection } from '@/hooks/useViewerSelection';
 import { PdfPage } from '@/components/pdf/PdfPage';
 import {
@@ -34,6 +35,7 @@ const buttonClass =
  * und Markieren funktionieren wie in der Textansicht.
  */
 export function PDFPageViewer({ handle, className = '', onStartReading, toolbarExtra }: PDFPageViewerProps) {
+  const t = useT();
   const dispatch = useReaderDispatch();
   const { resolvedTheme } = useTheme();
   const startIndex = useReaderSelector((s) => s.startIndex);
@@ -109,20 +111,20 @@ export function PDFPageViewer({ handle, className = '', onStartReading, toolbarE
           />
           <PageIndicator current={currentPage} total={pageCount} editable onPageChange={goToPage} />
 
-          <div role="group" aria-label="Zoom" className="flex items-center gap-0.5">
-            <button type="button" className={buttonClass} onClick={zoomOut} aria-label="Verkleinern">
+          <div role="group" aria-label={t('pdfviewer.zoom')} className="flex items-center gap-0.5">
+            <button type="button" className={buttonClass} onClick={zoomOut} aria-label={t('pdfviewer.zoomOut')}>
               <span aria-hidden="true" className="inline-block w-4 text-center font-semibold">−</span>
             </button>
             <button
               type="button"
               className="px-1.5 py-1 min-w-12 text-sm tabular-nums rounded hover:bg-gray-200 dark:hover:bg-gray-700"
               onClick={resetZoom}
-              aria-label="Zoom zurücksetzen (an Breite anpassen)"
-              title="An Breite anpassen"
+              aria-label={t('pdfviewer.zoomReset')}
+              title={t('pdfviewer.fitWidth')}
             >
               {zoomPercent} %
             </button>
-            <button type="button" className={buttonClass} onClick={zoomIn} aria-label="Vergrößern">
+            <button type="button" className={buttonClass} onClick={zoomIn} aria-label={t('pdfviewer.zoomIn')}>
               <span aria-hidden="true" className="inline-block w-4 text-center font-semibold">+</span>
             </button>
           </div>
@@ -134,12 +136,12 @@ export function PDFPageViewer({ handle, className = '', onStartReading, toolbarE
             className={`${buttonClass} ${dim ? 'bg-gray-300 dark:bg-gray-600' : ''}`}
             aria-pressed={dim}
             onClick={() => setDimOverride(!dim)}
-            title="Seiten abdunkeln"
+            title={t('pdfviewer.dim')}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
             </svg>
-            <span className="sr-only">Seiten abdunkeln</span>
+            <span className="sr-only">{t('pdfviewer.dim')}</span>
           </button>
           {toolbarExtra}
           <StartReadingButton onClick={start} />
@@ -176,12 +178,12 @@ export function PDFPageViewer({ handle, className = '', onStartReading, toolbarE
             onClick={resumeFollowing}
             className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 text-sm rounded-full shadow-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
           >
-            Zur aktuellen Stelle
+            {t('viewer.jumpToCurrent')}
           </button>
         )}
       </div>
 
-      <ViewerInstructions text="Klicke ein Wort, um dorthin zu springen. Markiere Text, um Start, Ende oder einen Lesebereich festzulegen." />
+      <ViewerInstructions text={t('view.instructionsSelect')} />
 
       {selection.showContextMenu && (
         <ViewerContextMenu

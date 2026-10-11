@@ -1,4 +1,5 @@
 import { useCallback, type ReactNode } from 'react';
+import { formatNumber, useT } from '@/i18n';
 
 interface NavigationButtonsProps {
   /** Go to previous item */
@@ -23,6 +24,7 @@ export function NavigationButtons({
   nextDisabled = false,
   className = '',
 }: NavigationButtonsProps) {
+  const t = useT();
   return (
     <div className={`flex items-center gap-1 ${className}`}>
       <button
@@ -30,7 +32,7 @@ export function NavigationButtons({
         disabled={prevDisabled}
         className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 
                    disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        aria-label="Zurück"
+        aria-label={t('nav.back')}
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -42,7 +44,7 @@ export function NavigationButtons({
         disabled={nextDisabled}
         className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 
                    disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        aria-label="Weiter"
+        aria-label={t('nav.next')}
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -127,11 +129,12 @@ interface StartReadingButtonProps {
  */
 export function StartReadingButton({
   onClick,
-  label = 'Lesen starten',
+  label,
   disabled = false,
   className = '',
   size = 'md',
 }: StartReadingButtonProps) {
+  const t = useT();
   const sizeClasses = {
     sm: 'px-2 py-1 text-xs',
     md: 'px-3 py-1.5 text-sm',
@@ -149,7 +152,7 @@ export function StartReadingButton({
       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
         <path d="M8 5v14l11-7z" />
       </svg>
-      {label}
+      {label ?? t('toolbar.startReading')}
     </button>
   );
 }
@@ -251,6 +254,7 @@ export function ReadingRangeInfo({
   onReset,
   className = '',
 }: ReadingRangeInfoProps) {
+  const t = useT();
   // Don't show if default range (start=0, end=null)
   if (startIndex === 0 && endIndex === null) return null;
 
@@ -260,13 +264,13 @@ export function ReadingRangeInfo({
                   border-b border-blue-200 dark:border-blue-800 text-sm ${className}`}
     >
       <span className="text-blue-700 dark:text-blue-300">
-        Lesebereich: Wort {startIndex + 1} bis {endIndex !== null ? endIndex + 1 : totalWords}
+        {t('toolbar.rangeInfo', { from: formatNumber(startIndex + 1), to: formatNumber(endIndex !== null ? endIndex + 1 : totalWords) })}
       </span>
       <button
         onClick={onReset}
         className="ml-auto text-blue-600 dark:text-blue-400 hover:underline"
       >
-        Zurücksetzen
+        {t('toolbar.reset')}
       </button>
     </div>
   );
@@ -284,11 +288,12 @@ interface ReadingRangeEstimateProps {
 
 /** One-line summary of a custom reading range (word count and estimated duration). */
 export function ReadingRangeEstimate({ startIndex, lastIndex, active, wpm }: ReadingRangeEstimateProps) {
+  const t = useT();
   if (!active) return null;
   const words = Math.max(0, lastIndex - startIndex + 1);
   return (
     <p className="flex-shrink-0 px-3 py-1 text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20">
-      {words.toLocaleString('de-DE')} Wörter, ca. {Math.max(1, Math.ceil(words / Math.max(1, wpm)))} Min. bei {wpm} WPM
+      {t('toolbar.rangeEstimate', { words: formatNumber(words), minutes: Math.max(1, Math.ceil(words / Math.max(1, wpm))), wpm })}
     </p>
   );
 }

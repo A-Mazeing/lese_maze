@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReaderDispatch } from '@/contexts/ReaderContext';
+import { t } from '@/i18n';
 import {
   PAGE_CONTENT_KEY_PREFIX,
   PAGE_CONTENT_MAX_AGE_MS,
@@ -77,10 +78,10 @@ export function usePageContent() {
       setState({ ...initialState, isLoading: true });
 
       if (!key) {
-        return fail('Kein Seiteninhalt angegeben. Öffne die Erweiterung auf der gewünschten Webseite und wähle „Aktuelle Seite lesen“.');
+        return fail(t('error.noPageKey'));
       }
       if (typeof chrome === 'undefined' || !chrome.storage?.session) {
-        return fail('Seiteninhalte sind nur innerhalb der Erweiterung verfügbar.');
+        return fail(t('error.pageOnlyInExtension'));
       }
 
       try {
@@ -88,14 +89,14 @@ export function usePageContent() {
         const stored = (await chrome.storage.session.get(storageKey))[storageKey] as unknown;
 
         if (!isStoredPageContent(stored)) {
-          return fail('Der Seiteninhalt wurde nicht gefunden. Bitte lade ihn über das Erweiterungsmenü erneut.');
+          return fail(t('error.pageNotFound'));
         }
         if (Date.now() - stored.timestamp > PAGE_CONTENT_MAX_AGE_MS) {
-          return fail('Der Seiteninhalt ist abgelaufen. Bitte lade ihn über das Erweiterungsmenü erneut.');
+          return fail(t('error.pageExpired'));
         }
 
         const { words, sentenceBreaks, paragraphBreaks } = tokenizeTextWithStructure(cleanText(stored.text));
-        if (words.length === 0) return fail('Auf der Seite wurden keine lesbaren Wörter gefunden.');
+        if (words.length === 0) return fail(t('error.pageNoWords'));
 
         const host = hostnameOf(stored.url);
         const title = stored.title.trim() || host || 'Webseite';
@@ -125,7 +126,7 @@ export function usePageContent() {
         return { success: true, wordCount: words.length };
       } catch (error) {
         console.error('[page] Seiteninhalt konnte nicht geladen werden:', error);
-        return fail(error instanceof Error ? error.message : 'Der Seiteninhalt konnte nicht geladen werden.');
+        return fail(error instanceof Error ? error.message : t('error.pageLoadFailed'));
       }
     },
     [dispatch],

@@ -6,6 +6,7 @@ import { RSVPDisplay } from '@/components/RSVPDisplay';
 import { SpeedControl } from '@/components/SpeedControl';
 import { WordsPerChunkControl } from '@/components/WordsPerChunkControl';
 import { useReaderDispatch, useReaderSelector } from '@/contexts/ReaderContext';
+import { useT } from '@/i18n';
 
 interface RsvpPanelProps {
   /** `lg`: Vollansicht, `sm`: schmale Spalte neben dem Text. */
@@ -14,6 +15,7 @@ interface RsvpPanelProps {
 
 /** RSVP-Anzeige samt allen Bedienelementen. */
 export function RsvpPanel({ size = 'lg' }: RsvpPanelProps) {
+  const t = useT();
   const compact = size === 'sm';
   const isFinished = useReaderSelector((s) => s.isFinished);
   const dispatch = useReaderDispatch();
@@ -27,13 +29,13 @@ export function RsvpPanel({ size = 'lg' }: RsvpPanelProps) {
         <RSVPDisplay fontSize={compact ? 42 : 56} />
         {isFinished && (
           <div role="status" className="mt-2 flex items-center justify-center gap-3 text-sm text-gray-600 dark:text-gray-400">
-            <span>Ende des Lesebereichs erreicht.</span>
+            <span>{t('rsvp.finished')}</span>
             <button
               type="button"
               onClick={() => dispatch({ type: 'PLAY' })}
               className="px-3 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
             >
-              Von vorn
+              {t('rsvp.restart')}
             </button>
           </div>
         )}

@@ -1,24 +1,29 @@
 import { memo, useMemo } from 'react';
 import { useReaderSelector } from '@/contexts/ReaderContext';
 import { getEffectiveEnd } from '@/contexts/readerReducer';
+import { useFitToWidth } from '@/hooks/useFitToWidth';
+import { useT } from '@/i18n';
 import { formatWordWithORP } from '@/utils/orpCalculator';
 
 interface RSVPDisplayProps {
   fontSize?: number;
 }
 
-/** Bis zu dieser Zeichenzahl je Seite des ORP-Buchstabens wird die Schrift nicht verkleinert. */
-const MAX_CHARS_PER_SIDE = 12;
 const MULTI_WORD_SCALE: Record<number, number> = { 2: 0.9, 3: 0.8, 4: 0.7 };
 
 /**
  * RSVP-Anzeige mit ORP-Hervorhebung (1-4 Wörter gleichzeitig).
+ *
+ * Passt der Inhalt nicht in die Breite (langes Wort, mehrere Wörter, schmales Panel), wird er
+ * gemessen und gleichmäßig verkleinert (`useFitToWidth`) – nichts ragt mehr heraus.
  *
  * Layout: Ein dreispaltiges Raster (`1fr auto 1fr`) hält den ORP-Buchstaben exakt in der
  * Mitte – unabhängig von der Länge des Wortes davor/danach und von der Schriftart.
  * (Feste `minWidth`-Werte, wie zuvor, verschieben das Wort ab einer bestimmten Länge.)
  */
 export const RSVPDisplay = memo(function RSVPDisplay({ fontSize = 48 }: RSVPDisplayProps) {
+  const t = useT();
+  const { containerRef, contentRef } = useFitToWidth();
   const words = useReaderSelector((s) => s.words);
   const currentIndex = useReaderSelector((s) => s.currentIndex);
   const wordsPerChunk = useReaderSelector((s) => s.wordsPerChunk);
@@ -38,7 +43,7 @@ export const RSVPDisplay = memo(function RSVPDisplay({ fontSize = 48 }: RSVPDisp
     return (
       <div className="flex items-center justify-center h-64">
         <p className="text-gray-500 dark:text-gray-400 text-lg">
-          Lade ein Dokument um mit dem Lesen zu beginnen
+          {t('display.empty')}
         </p>
       </div>
     );
@@ -49,12 +54,11 @@ export const RSVPDisplay = memo(function RSVPDisplay({ fontSize = 48 }: RSVPDisp
   // Klassisches RSVP: ein Wort, ORP-Buchstabe fest in der Mitte.
   if (chunk.length <= 1) {
     const orp = formatWordWithORP(chunk[0] ?? '');
-    const longestSide = Math.max(Array.from(orp.before).length, Array.from(orp.after).length);
-    const size = Math.round(fontSize * Math.min(1, MAX_CHARS_PER_SIDE / Math.max(1, longestSide)));
 
     return (
       <div
-        className="relative flex flex-col items-center justify-center h-64 overflow-hidden"
+        ref={containerRef}
+        className="relative flex flex-col items-center justify-center h-64 px-4 overflow-hidden"
         role="img"
         aria-label={label}
         data-testid="rsvp-display"
@@ -62,9 +66,10 @@ export const RSVPDisplay = memo(function RSVPDisplay({ fontSize = 48 }: RSVPDisp
         <div aria-hidden="true" className="absolute top-8 text-red-500 dark:text-red-400 text-base">▼</div>
 
         <div
+          ref={contentRef}
           aria-hidden="true"
-          className="grid w-full items-baseline font-mono tracking-wide whitespace-nowrap select-none"
-          style={{ gridTemplateColumns: '1fr auto 1fr', fontSize: `${size}px` }}
+          className="grid w-max items-baseline font-mono tracking-wide whitespace-nowrap select-none"
+          style={{ gridTemplateColumns: '1fr auto 1fr', fontSize: `${fontSize}px` }}
         >
           <span className="justify-self-end text-gray-900 dark:text-gray-100" data-testid="rsvp-before">{orp.before}</span>
           <span className="text-red-500 dark:text-red-400 font-bold" data-testid="rsvp-orp">{orp.orp}</span>
@@ -82,14 +87,16 @@ export const RSVPDisplay = memo(function RSVPDisplay({ fontSize = 48 }: RSVPDisp
 
   return (
     <div
-      className="relative flex flex-col items-center justify-center h-64 overflow-hidden"
+      ref={containerRef}
+      className="relative flex flex-col items-center justify-center h-64 px-4 overflow-hidden"
       role="img"
       aria-label={label}
       data-testid="rsvp-display"
     >
       <div
+        ref={contentRef}
         aria-hidden="true"
-        className="flex items-center justify-center gap-3 font-mono tracking-wide whitespace-nowrap select-none"
+        className="flex w-max items-center justify-center gap-3 font-mono tracking-wide whitespace-nowrap select-none"
         style={{ fontSize: `${size}px` }}
       >
         {chunk.map((word, index) => {

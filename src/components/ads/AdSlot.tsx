@@ -1,4 +1,5 @@
 import { useAd } from '@/ads/useAd';
+import { useT } from '@/i18n';
 import { useAdsEnabled } from '@/ads/adStore';
 import type { AdPlacement } from '@/ads/types';
 
@@ -13,24 +14,25 @@ interface AdSlotProps {
  * Klick abschalten (Chrome-Web-Store-Richtlinie: „easily removable“).
  */
 export function AdSlot({ placement, className = '' }: AdSlotProps) {
+  const t = useT();
   const ad = useAd(placement);
   const { setEnabled } = useAdsEnabled();
   if (!ad) return null;
 
   return (
     <aside
-      aria-label="Anzeige"
+      aria-label={t('ads.aria')}
       data-testid={`ad-${placement}`}
       className={`w-full max-w-xl rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm ${className}`}
     >
       <div className="flex items-center justify-between gap-2 px-3 pt-2 text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
-        <span>Anzeige · {ad.sponsor}</span>
+        <span>{t('ads.label', { sponsor: ad.sponsor })}</span>
         <button
           type="button"
           onClick={() => setEnabled(false)}
           className="normal-case tracking-normal underline hover:no-underline"
         >
-          Werbung ausblenden
+          {t('ads.hide')}
         </button>
       </div>
 
@@ -53,12 +55,12 @@ export function AdSlot({ placement, className = '' }: AdSlotProps) {
           <span className="min-w-0">
             <span className="block font-medium text-gray-900 dark:text-gray-100">{ad.title}</span>
             <span className="block text-gray-600 dark:text-gray-400">{ad.text}</span>
-            <span className="block mt-1 text-blue-600 dark:text-blue-400">{ad.cta} →</span>
+            <span className="block mt-1 text-blue-600 dark:text-blue-400">{ad.cta || t('ads.learnMore')} →</span>
           </span>
         </a>
       ) : (
         <iframe
-          title={`Anzeige von ${ad.sponsor}`}
+          title={t('ads.frameTitle', { sponsor: ad.sponsor })}
           src={ad.src}
           // Ohne allow-same-origin: Der Inhalt hat keinen Zugriff auf die Erweiterung.
           sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"

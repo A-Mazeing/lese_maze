@@ -13,14 +13,14 @@ import pkg from './package.json' with { type: 'json' };
  */
 export default defineManifest({
   manifest_version: 3,
-  name: 'RSVP Speed Reader',
+  name: '__MSG_extName__',
+  default_locale: 'en',
   version: pkg.version,
-  description:
-    'Schneller lesen mit RSVP (Rapid Serial Visual Presentation) – für PDFs, ePubs und Webseiten.',
+  description: '__MSG_extDescription__',
   minimum_chrome_version: '110',
   permissions: ['activeTab', 'storage', 'scripting'],
   action: {
-    default_title: 'RSVP Speed Reader',
+    default_title: '__MSG_actionTitle__',
     default_popup: 'src/popup/index.html',
     default_icon: {
       '16': 'icons/icon16.png',

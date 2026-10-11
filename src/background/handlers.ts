@@ -10,7 +10,11 @@ import {
   type ReaderOpenMode,
   type StoredPageContent,
 } from '@/types/messages';
+import { loadLanguage, t } from '@/i18n';
 import { extractPageInPage, type PageExtractionResult } from './pageExtractor';
+
+/** Fehlercode, den `extractPageInPage` liefert, wenn kein Text gefunden wurde. */
+const NO_TEXT_ERROR = 'NO_READABLE_TEXT';
 
 /** Pfad des Readers innerhalb der Erweiterung (siehe vite.config.ts → rollupOptions.input). */
 export const READER_PATH = 'src/reader/index.html';
@@ -36,22 +40,22 @@ export function buildReaderUrl(
 /** Prüft, ob in die Seite Skripte injiziert werden dürfen; liefert sonst eine Fehlermeldung. */
 export function checkPageUrl(url: string | undefined): string | null {
   if (!url) {
-    return 'Die Adresse dieses Tabs ist nicht lesbar. Bitte lade die Seite neu und versuche es erneut.';
+    return t('error.tabUnreadable');
   }
   let parsed: URL;
   try {
     parsed = new URL(url);
   } catch {
-    return 'Die Adresse dieses Tabs ist ungültig.';
+    return t('error.tabInvalid');
   }
   if (BLOCKED_PROTOCOLS.includes(parsed.protocol) || BLOCKED_HOSTS.includes(parsed.hostname)) {
-    return 'Diese Browser-Seite kann nicht gelesen werden. Öffne eine normale Webseite.';
+    return t('error.browserPage');
   }
   if (!['http:', 'https:', 'file:'].includes(parsed.protocol)) {
-    return `Seiten mit „${parsed.protocol}“ werden nicht unterstützt.`;
+    return t('error.protocol', { protocol: parsed.protocol });
   }
   if (parsed.pathname.toLowerCase().endsWith('.pdf')) {
-    return 'PDF-Dateien öffnest du über „PDF Reader“ im Menü der Erweiterung.';
+    return t('error.pdfTab');
   }
   return null;
 }
@@ -100,8 +104,9 @@ async function findTargetTab(): Promise<chrome.tabs.Tab | undefined> {
 }
 
 export async function handleReadCurrentPage(): Promise<MessageResponse<{ key: string }>> {
+  await loadLanguage(); // Fehlermeldungen in der gewählten Sprache
   const tab = await findTargetTab();
-  if (!tab?.id) return fail('Es wurde kein aktiver Tab gefunden.');
+  if (!tab?.id) return fail(t('error.noTab'));
 
   const urlProblem = checkPageUrl(tab.url);
   if (urlProblem) return fail(urlProblem);
@@ -116,14 +121,14 @@ export async function handleReadCurrentPage(): Promise<MessageResponse<{ key: st
   } catch (error) {
     // Typisch: fehlende activeTab-Berechtigung, Seite geschützt oder Tab wurde geschlossen.
     console.warn('[sw] executeScript fehlgeschlagen:', error);
-    return fail(
-      'Auf diese Seite darf die Erweiterung nicht zugreifen. Öffne das Erweiterungsmenü erneut, nachdem die Seite vollständig geladen ist.',
-    );
+    return fail(t('error.noAccess'));
   }
 
   const result = results[0]?.result;
-  if (!result) return fail('Die Seite lieferte keinen Inhalt.');
-  if (!isPageResult(result)) return fail('error' in result ? result.error : 'Die Seite lieferte keinen Inhalt.');
+  if (!result) return fail(t('error.pageEmpty'));
+  if (!isPageResult(result)) {
+    return fail('error' in result && result.error !== NO_TEXT_ERROR ? result.error : t('error.pageNoText'));
+  }
 
   await purgeStalePageContent();
   let key: string;
@@ -131,7 +136,7 @@ export async function handleReadCurrentPage(): Promise<MessageResponse<{ key: st
     key = await storePageContent(result);
   } catch (error) {
     console.error('[sw] Seiteninhalt konnte nicht zwischengespeichert werden:', error);
-    return fail('Der Seiteninhalt ist zu groß, um ihn zwischenzuspeichern.');
+    return fail(t('error.pageTooLarge'));
   }
 
   await chrome.tabs.create({ url: buildReaderUrl('page', { key }) });

@@ -4,6 +4,7 @@ import { useReaderDispatch, useReaderDocuments } from '@/contexts/ReaderContext'
 import { EpubParseAborted, parseEpubBook } from '@/utils/epubParse';
 import { fingerprintWords, generateDocumentId } from '@/utils/storage';
 import type { ParseResult } from './usePDFParser';
+import { t } from '@/i18n';
 
 /** Größenlimit, ab dem ein ePub abgelehnt wird. */
 export const MAX_EPUB_BYTES = 150 * 1024 * 1024;
@@ -86,7 +87,7 @@ export function useEPubParser() {
       };
 
       if (file.size > MAX_EPUB_BYTES) {
-        const error = `Die Datei ist zu groß (maximal ${Math.round(MAX_EPUB_BYTES / 1024 / 1024)} MB).`;
+        const error = t('load.tooLarge', { mb: Math.round(MAX_EPUB_BYTES / 1024 / 1024) });
         update({ ...initialState, error, fileName: file.name });
         return { success: false, error };
       }
@@ -143,7 +144,7 @@ export function useEPubParser() {
         const message =
           error instanceof Error && error.message
             ? error.message
-            : 'Das ePub konnte nicht geladen werden.';
+            : t('epub.loadFailed');
         console.error('[epub] Laden fehlgeschlagen:', error);
         updateIfCurrent({ isLoading: false, error: message });
         return { success: false, error: message };

@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, type DragEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { useT } from '@/i18n';
 
 /**
  * Configuration for a document type.
@@ -107,6 +108,7 @@ export function DocumentSelector({
   const [validationError, setValidationError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const colors = colorClasses[config.color];
+  const t = useT();
 
   const validateFile = useCallback((file: File): boolean => {
     // Der MIME-Typ ist je nach System leer oder abweichend; die Endung ist maßgeblich (ohne Groß-/Kleinschreibung).
@@ -119,9 +121,9 @@ export function DocumentSelector({
       onLoadFile(file);
     } else {
       // Inline statt window.alert(): blockiert nicht und ist für Screenreader sichtbar (role="alert").
-      setValidationError(`Bitte wähle eine ${config.label} aus.`);
+      setValidationError(t('selector.pickValid', { label: config.label }));
     }
-  }, [validateFile, onLoadFile, config.label]);
+  }, [validateFile, onLoadFile, config.label, t]);
 
   const handleDrop = useCallback((e: DragEvent) => {
     e.preventDefault();
@@ -171,7 +173,7 @@ export function DocumentSelector({
                       dark:border-gray-600 rounded-lg">
         <div className={`animate-spin rounded-full h-12 w-12 border-4 ${colors.spinner} border-t-transparent mb-4`} />
         <p className="text-gray-600 dark:text-gray-400" role="status">
-          {state.loadingProgress || `Lade ${config.label}...`}
+          {state.loadingProgress || t('selector.loading', { label: config.label })}
         </p>
       </div>
     );
@@ -197,7 +199,7 @@ export function DocumentSelector({
             className="px-3 py-1 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 
                        dark:hover:bg-red-900/20 rounded transition-colors"
           >
-            Entfernen
+            {t('selector.remove')}
           </button>
         </div>
         {state.error && (
@@ -214,7 +216,7 @@ export function DocumentSelector({
     <div
       role="button"
       tabIndex={0}
-      aria-label={`${config.label} auswählen`}
+      aria-label={t('selector.choose', { label: config.label })}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       onDrop={handleDrop}
@@ -241,7 +243,7 @@ export function DocumentSelector({
       </div>
       
       <p className="text-gray-600 dark:text-gray-400 mb-2">
-        {config.label} hierher ziehen oder klicken zum Auswählen
+        {t('selector.drop', { label: config.label })}
       </p>
       
       {(validationError || state.error) && (

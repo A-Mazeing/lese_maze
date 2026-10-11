@@ -9,6 +9,7 @@ export interface PdfDocumentHandle {
 // Legacy-Build: enthält die Polyfills für neuere JavaScript-Funktionen (z. B. Map.getOrInsertComputed),
 // die in älteren Chrome-Versionen fehlen (die Extension unterstützt Chrome ab 110).
 import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
+import { t } from '@/i18n';
 
 type PdfJsModule = typeof PdfJsNamespace;
 
@@ -61,19 +62,19 @@ function toLoadError(error: unknown): PdfLoadError {
   switch (name) {
     case 'PasswordException':
       return new PdfLoadError(
-        'Das PDF ist passwortgeschützt. Passwortgeschützte Dokumente werden nicht unterstützt.',
+        t('pdf.password'),
         'password',
         { cause: error },
       );
     case 'InvalidPDFException':
-      return new PdfLoadError('Die Datei ist kein gültiges oder ein beschädigtes PDF.', 'invalid', { cause: error });
+      return new PdfLoadError(t('pdf.invalid'), 'invalid', { cause: error });
     case 'MissingPDFException':
-      return new PdfLoadError('Das PDF wurde nicht gefunden.', 'missing', { cause: error });
+      return new PdfLoadError(t('pdf.missing'), 'missing', { cause: error });
     case 'AbortException':
-      return new PdfLoadError('Das Laden wurde abgebrochen.', 'aborted', { cause: error });
+      return new PdfLoadError(t('load.aborted'), 'aborted', { cause: error });
     default:
       return new PdfLoadError(
-        error instanceof Error && error.message ? `PDF konnte nicht geladen werden: ${error.message}` : 'PDF konnte nicht geladen werden.',
+        error instanceof Error && error.message ? t('pdf.couldNotLoadDetail', { message: error.message }) : t('pdf.couldNotLoad'),
         'unknown',
         { cause: error },
       );
@@ -94,7 +95,7 @@ export interface OpenPdfOptions {
  */
 export async function openPdf(data: ArrayBuffer | Uint8Array, options: OpenPdfOptions = {}): Promise<PDFDocumentProxy> {
   const { signal } = options;
-  if (signal?.aborted) throw new PdfLoadError('Das Laden wurde abgebrochen.', 'aborted');
+  if (signal?.aborted) throw new PdfLoadError(t('load.aborted'), 'aborted');
 
   const pdfjs = await loadPdfJs();
   const task = pdfjs.getDocument({
@@ -117,11 +118,11 @@ export async function openPdf(data: ArrayBuffer | Uint8Array, options: OpenPdfOp
     const doc = await task.promise;
     if (signal?.aborted) {
       await doc.destroy().catch(() => undefined);
-      throw new PdfLoadError('Das Laden wurde abgebrochen.', 'aborted');
+      throw new PdfLoadError(t('load.aborted'), 'aborted');
     }
     return doc;
   } catch (error) {
-    throw signal?.aborted ? new PdfLoadError('Das Laden wurde abgebrochen.', 'aborted', { cause: error }) : toLoadError(error);
+    throw signal?.aborted ? new PdfLoadError(t('load.aborted'), 'aborted', { cause: error }) : toLoadError(error);
   } finally {
     signal?.removeEventListener('abort', onAbort);
   }

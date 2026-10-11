@@ -5,6 +5,7 @@ import { PDFSelector } from '@/components/PDFSelector';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { AdPreferenceToggle } from '@/components/ads/AdPreferenceToggle';
 import { AdSlot } from '@/components/ads/AdSlot';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { PDFViewer } from '@/components/PDFViewer';
 import { ContentPreview } from '@/components/viewer';
 import { ErrorDisplay, LoadingState } from '@/components/shared';
@@ -13,6 +14,7 @@ import {
   useReaderDocuments,
   useReaderSelector,
 } from '@/contexts/ReaderContext';
+import { formatNumber, useT } from '@/i18n';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { usePageContent } from '@/hooks/usePageContent';
 import { useProgress } from '@/hooks/useProgress';
@@ -23,14 +25,21 @@ import { ShortcutHelp } from './ShortcutHelp';
 import { SourcePicker } from './SourcePicker';
 import { useResumeHint } from './useResumeHint';
 
-const MODE_TITLES: Record<ReaderMode, string> = {
-  select: 'RSVP Speed Reader',
-  pdf: 'PDF Reader',
-  epub: 'ePub Reader',
-  page: 'Webseite lesen',
-};
+function modeTitle(mode: ReaderMode, t: ReturnType<typeof useT>): string {
+  switch (mode) {
+    case 'pdf':
+      return t('reader.title_pdf');
+    case 'epub':
+      return t('reader.title_epub');
+    case 'page':
+      return t('reader.title_page');
+    default:
+      return t('reader.title_select');
+  }
+}
 
 export function Reader() {
+  const t = useT();
   const dispatch = useReaderDispatch();
   const { releaseDocuments } = useReaderDocuments();
   const params = useMemo(() => parseReaderParams(window.location.search), []);
@@ -59,8 +68,8 @@ export function Reader() {
   }, [params.mode, params.key, page]);
 
   useEffect(() => {
-    document.title = title ? `${title} – RSVP Speed Reader` : MODE_TITLES[mode];
-  }, [title, mode]);
+    document.title = title ? `${title} – RSVP Speed Reader` : modeTitle(mode, t);
+  }, [title, mode, t]);
 
   const backToSelection = useCallback(() => {
     dispatch({ type: 'CLEAR_CONTENT' });
@@ -90,22 +99,22 @@ export function Reader() {
                 type="button"
                 onClick={backToSelection}
                 className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                aria-label="Zurück zur Auswahl"
+                aria-label={t('reader.backToSelection')}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
             )}
-            <h1 className="text-xl font-bold truncate">{title || MODE_TITLES[mode]}</h1>
+            <h1 className="text-xl font-bold truncate">{title || modeTitle(mode, t)}</h1>
           </div>
 
           <div className="flex items-center gap-4">
             {hasContent && (
-              <div role="group" aria-label="Ansicht" className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+              <div role="group" aria-label={t('reader.view')} className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
                 {([
-                  [false, 'RSVP'],
-                  [true, 'Mit Text'],
+                  [false, t('reader.viewRsvp')],
+                  [true, t('reader.viewText')],
                 ] as const).map(([value, label]) => (
                   <button
                     key={label}
@@ -123,9 +132,10 @@ export function Reader() {
             )}
             {hasContent && (
               <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                {wordCount.toLocaleString('de-DE')} Wörter
+                {t('reader.words', { count: formatNumber(wordCount) })}
               </span>
             )}
+            <LanguageSwitcher />
             <ThemeToggle />
           </div>
         </div>
@@ -134,17 +144,16 @@ export function Reader() {
       {restored && !restoredDismissed && hasContent && (
         <div role="status" className="flex-shrink-0 flex items-center justify-center gap-3 px-4 py-2 text-sm bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 border-b border-blue-200 dark:border-blue-800">
           <span>
-            Fortschritt wiederhergestellt: Wort {(restored.index + 1).toLocaleString('de-DE')} (
-            {formatProgress(restored.index, wordCount)}).
+            {t('reader.restored', { word: formatNumber(restored.index + 1), percent: formatProgress(restored.index, wordCount) })}
           </span>
           <button
             type="button"
             onClick={() => dispatch({ type: 'SET_INDEX', payload: 0 })}
             className="underline hover:no-underline"
           >
-            Von vorn beginnen
+            {t('reader.fromStart')}
           </button>
-          <button type="button" onClick={() => setDismissedHint(restored)} className="ml-2" aria-label="Hinweis schließen">
+          <button type="button" onClick={() => setDismissedHint(restored)} className="ml-2" aria-label={t('reader.dismiss')}>
             ✕
           </button>
         </div>
@@ -153,8 +162,7 @@ export function Reader() {
       <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {!hasContent && resumeHint && mode !== 'page' && (
           <div role="status" className="flex-shrink-0 px-4 py-2 text-sm text-center bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-100 border-b border-amber-200 dark:border-amber-800">
-            Zuletzt gelesen: <strong>{resumeHint.title}</strong> ({formatProgress(resumeHint.currentIndex, resumeHint.totalWords)}).
-            Wähle dieselbe Datei erneut aus – du liest dann an der gespeicherten Stelle weiter.
+            {t('reader.resumeHint', { title: resumeHint.title, percent: formatProgress(resumeHint.currentIndex, resumeHint.totalWords) })}
           </div>
         )}
 
@@ -185,7 +193,7 @@ export function Reader() {
 
         {mode === 'page' && !hasContent && page.isLoading && (
           <div className="flex-1 flex items-center justify-center">
-            <LoadingState message="Lade Seiteninhalt…" size="lg" color="green" />
+            <LoadingState message={t('reader.loadingPage')} size="lg" color="green" />
           </div>
         )}
 
@@ -194,7 +202,7 @@ export function Reader() {
             <div className="max-w-md rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20">
               <ErrorDisplay
                 message={page.error}
-                action={{ label: 'Zur Auswahl', onClick: backToSelection }}
+                action={{ label: t('reader.toSelection'), onClick: backToSelection }}
               />
             </div>
           </div>
@@ -202,8 +210,8 @@ export function Reader() {
 
         {hasContent && mode === 'page' && (page.truncated || page.fromSelection) && (
           <div role="status" className="flex-shrink-0 px-4 py-1.5 text-xs text-center text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            {page.fromSelection ? 'Es wird nur der markierte Text gelesen.' : ''}
-            {page.truncated ? ' Die Seite war sehr lang und wurde gekürzt.' : ''}
+            {page.fromSelection ? t('reader.onlySelection') : ''}
+            {page.truncated ? ` ${t('reader.truncated')}` : ''}
           </div>
         )}
 

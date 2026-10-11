@@ -85,7 +85,7 @@ describe('extractPageInPage', () => {
   it('returns a readable error for empty pages', () => {
     mount('<div></div>');
     const result = extractPageInPage({ maxChars: 1000 });
-    expect(result).toEqual({ error: 'Auf dieser Seite wurde kein lesbarer Text gefunden.' });
+    expect(result).toEqual({ error: 'NO_READABLE_TEXT' });
   });
 
   it('produces the same words as the shared extractor (parity)', () => {

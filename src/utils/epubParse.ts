@@ -2,6 +2,7 @@ import type { Book } from 'epubjs';
 import type { Chapter } from '@/types';
 import { collectDomWords } from './htmlText';
 import { buildTextStructure } from './textProcessor';
+import { t } from '@/i18n';
 
 /**
  * Struktur der epub.js-Objekte, soweit wir sie benutzen. Die mitgelieferten Typen
@@ -50,7 +51,7 @@ export interface ParseEpubOptions {
 
 export class EpubParseAborted extends Error {
   constructor() {
-    super('Das Laden wurde abgebrochen.');
+    super(t('load.aborted'));
     this.name = 'EpubParseAborted';
   }
 }
@@ -124,7 +125,7 @@ export async function parseEpubBook(book: Book, options: ParseEpubOptions = {}):
 
   const spine = book.spine as unknown as SpineLike;
   const items = spine.items ?? [];
-  if (items.length === 0) throw new Error('Das ePub enthält keine lesbaren Inhalte.');
+  if (items.length === 0) throw new Error(t('epub.noContent'));
 
   const navigation = await book.loaded.navigation.catch(() => null);
   const toc = flattenToc((navigation?.toc ?? []) as unknown as TocItem[]);
@@ -201,8 +202,8 @@ export async function parseEpubBook(book: Book, options: ParseEpubOptions = {}):
   if (words.length === 0) {
     throw new Error(
       skippedSections > 0
-        ? 'Das ePub konnte nicht gelesen werden (Inhalte fehlen oder sind beschädigt).'
-        : 'Im ePub wurde kein lesbarer Text gefunden.',
+        ? t('epub.unreadable')
+        : t('epub.noText'),
     );
   }
 

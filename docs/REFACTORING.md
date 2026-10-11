@@ -114,6 +114,8 @@ lese_maze/
 ├── index.html                    # Dev-Einstiegsseite
 ├── scripts/copy-pdfjs-assets.mjs # kopiert pdf.js-CMaps, Standardschriften, WASM und ICC nach public/pdfjs/
 ├── public/icons/                 # Extension-Icons
+├── public/_locales/{en,de}/      # Name, Beschreibung, Tooltip (Manifest-Lokalisierung)
+├── .env.example                  # Store-Build: Spenden, Affiliate, Werbung
 ├── .github/workflows/build.yml   # CI: Typecheck, Lint, Tests, Build, Artefakt
 ├── docs/REFACTORING.md
 └── src/
@@ -128,7 +130,7 @@ lese_maze/
     │   ├── readerReducer.ts      # reiner Reducer
     │   ├── ReaderContext.tsx     # Provider, Selektor-Hooks, Dokument-Ressourcen, Settings-Persistenz
     │   └── ThemeContext.tsx
-    ├── hooks/                    # useRSVP, usePDFParser, useEPubParser, useEPubViewer, usePageContent,
+    ├── hooks/                    # useFitToWidth, useRSVP, usePDFParser, useEPubParser, useEPubViewer, usePageContent,
     │                             # useProgress, useKeyboardShortcuts, useViewerSelection, useContextMenu, usePdfViewer
     ├── utils/                    # pdfjs, pdfText, htmlText, epubParse, epubWordMap, cleanText, textProcessor,
     │                             # orpCalculator, viewerRows, pdfAlign, storage, messaging
@@ -138,10 +140,12 @@ lese_maze/
     │   ├── viewer/               # WordViewer (virtualisiert), DocumentTextView
     │   └── shared/               # DocumentSelector, ViewerContextMenu, ViewerToolbar, LoadingState
     ├── ads/                      # Werbe-Schnittstelle (aus im Standard-Build): Config, Regeln, Feed, Store
+    ├── i18n/                     # Sprachschicht: en.ts (Schlüssel), de.ts, index.ts (t, tn, useT, setLanguage)
+    ├── support/                  # Spenden-/Affiliate-Konfiguration, Buchtipps, Speicher für „Buchtipps anzeigen“
     ├── popup/                    # Popup (PDF/ePub/Seite, zuletzt gelesen)
     ├── reader/                   # Reader-Tab: Quellenwahl, RSVP-Panel, Resume-Hinweis
     ├── styles/index.css          # Tailwind 4, Basis-CSS in @layer base
-    └── __tests__/                # 17 Testdateien, 283 Tests
+    └── __tests__/                # 19 Testdateien, 309 Tests
 ```
 
 ## 4. Änderungen an Manifest, Vite und Dependencies
@@ -176,7 +180,7 @@ lese_maze/
 
 ## 5. Verifikation
 
-* `npm run check`: Typecheck (App + Node-Config), ESLint (0 Meldungen), 283 Unit-/Komponententests – alle grün.
+* `npm run check`: Typecheck (App + Node-Config), ESLint (0 Meldungen), 309 Unit-/Komponententests – alle grün.
 * `npm run build`: fehlerfrei; `dist/` enthält Manifest, Service-Worker-Loader, Reader/Popup, pdf.js-Worker sowie CMaps, Standardschriften, WASM- und ICC-Dateien (`dist/pdfjs/`).
 * Ende-zu-Ende in echtem Chromium (Playwright, `--load-extension`, Xvfb) – 23 Prüfungen, alle bestanden:
   PDF-Import (Entsilbung, keine Seitenzahlen), Wiedergabetakt (Ø 104 ms bei 600 WPM, kein Drift), ePub-Rendering,

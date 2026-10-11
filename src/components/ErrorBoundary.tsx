@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { t } from '@/i18n';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -36,7 +37,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     return (
       <div role="alert" className="min-h-screen flex items-center justify-center p-8 bg-gray-50 dark:bg-gray-900">
         <div className="max-w-md rounded-xl border border-red-200 dark:border-red-800 bg-white dark:bg-gray-800 p-6 text-center shadow-sm">
-          <h1 className="text-lg font-semibold text-red-700 dark:text-red-300 mb-2">Es ist ein Fehler aufgetreten</h1>
+          <h1 className="text-lg font-semibold text-red-700 dark:text-red-300 mb-2">{t('error.title')}</h1>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 break-words">{error.message}</p>
           <div className="flex justify-center gap-2">
             <button
@@ -44,14 +45,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               onClick={this.retry}
               className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
             >
-              Erneut versuchen
+              {t('error.retry')}
             </button>
             <button
               type="button"
               onClick={() => window.location.reload()}
               className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
             >
-              Seite neu laden
+              {t('error.reload')}
             </button>
           </div>
         </div>

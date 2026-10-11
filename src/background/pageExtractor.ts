@@ -187,7 +187,7 @@ export function extractPageInPage(options: PageExtractionOptions): PageExtractio
     const main = findMainElement();
     const text = extractText(main.element, true, main.isContent);
     if (!text) {
-      return { error: 'Auf dieser Seite wurde kein lesbarer Text gefunden.' };
+      return { error: 'NO_READABLE_TEXT' }; // Code; die Übersetzung übernimmt der Service Worker
     }
     const result = truncate(text);
     return { text: result.text, title: meta.title, url: meta.url, fromSelection: false, truncated: result.truncated };

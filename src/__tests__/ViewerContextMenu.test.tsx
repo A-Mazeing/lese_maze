@@ -19,7 +19,7 @@ describe('ViewerContextMenu', () => {
   it('should render menu with word range header', () => {
     render(<ViewerContextMenu {...defaultProps} />);
     
-    expect(screen.getByText('Wörter 6 - 11')).toBeInTheDocument();
+    expect(screen.getByText('Words 6 - 11')).toBeInTheDocument();
   });
 
   it('should not render when selectedRange is null', () => {
@@ -31,16 +31,16 @@ describe('ViewerContextMenu', () => {
   it('should render all action buttons', () => {
     render(<ViewerContextMenu {...defaultProps} />);
     
-    expect(screen.getByText('Auswahl im RSVP starten')).toBeInTheDocument();
-    expect(screen.getByText('Von hier starten')).toBeInTheDocument();
-    expect(screen.getByText('Hier enden')).toBeInTheDocument();
-    expect(screen.getByText('Lesebereich setzen')).toBeInTheDocument();
+    expect(screen.getByText('Read selection with RSVP')).toBeInTheDocument();
+    expect(screen.getByText('Start from here')).toBeInTheDocument();
+    expect(screen.getByText('End here')).toBeInTheDocument();
+    expect(screen.getByText('Set reading range')).toBeInTheDocument();
   });
 
   it('should call onAction with "read" when RSVP button is clicked', () => {
     render(<ViewerContextMenu {...defaultProps} />);
     
-    fireEvent.click(screen.getByText('Auswahl im RSVP starten'));
+    fireEvent.click(screen.getByText('Read selection with RSVP'));
     
     expect(defaultProps.onAction).toHaveBeenCalledWith('read');
     expect(defaultProps.onClose).toHaveBeenCalled();
@@ -49,7 +49,7 @@ describe('ViewerContextMenu', () => {
   it('should call onAction with "start" when start button is clicked', () => {
     render(<ViewerContextMenu {...defaultProps} />);
     
-    fireEvent.click(screen.getByText('Von hier starten'));
+    fireEvent.click(screen.getByText('Start from here'));
     
     expect(defaultProps.onAction).toHaveBeenCalledWith('start');
   });
@@ -57,7 +57,7 @@ describe('ViewerContextMenu', () => {
   it('should call onAction with "end" when end button is clicked', () => {
     render(<ViewerContextMenu {...defaultProps} />);
     
-    fireEvent.click(screen.getByText('Hier enden'));
+    fireEvent.click(screen.getByText('End here'));
     
     expect(defaultProps.onAction).toHaveBeenCalledWith('end');
   });
@@ -65,7 +65,7 @@ describe('ViewerContextMenu', () => {
   it('should call onAction with "range" when range button is clicked', () => {
     render(<ViewerContextMenu {...defaultProps} />);
     
-    fireEvent.click(screen.getByText('Lesebereich setzen'));
+    fireEvent.click(screen.getByText('Set reading range'));
     
     expect(defaultProps.onAction).toHaveBeenCalledWith('range');
   });
@@ -73,7 +73,7 @@ describe('ViewerContextMenu', () => {
   it('should hide word range when showWordRange is false', () => {
     render(<ViewerContextMenu {...defaultProps} showWordRange={false} />);
     
-    expect(screen.queryByText('Wörter 6 - 11')).not.toBeInTheDocument();
+    expect(screen.queryByText('Words 6 - 11')).not.toBeInTheDocument();
   });
 
   it('should close on Escape key', () => {

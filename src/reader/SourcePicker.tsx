@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useT } from '@/i18n';
 
 interface SourceCardProps {
   title: string;
@@ -45,12 +46,13 @@ interface SourcePickerProps {
 
 /** Startansicht: Quelle wählen. */
 export function SourcePicker({ onSelect }: SourcePickerProps) {
+  const t = useT();
   return (
     <div className="flex-1 flex items-center justify-center p-8">
       <div className="grid md:grid-cols-3 gap-6 max-w-3xl">
         <SourceCard
-          title="PDF öffnen"
-          description="PDF-Datei laden"
+          title={t('source.pdfTitle')}
+          description={t('source.pdfDesc')}
           tone="red"
           onClick={() => onSelect('pdf')}
           icon={
@@ -60,8 +62,8 @@ export function SourcePicker({ onSelect }: SourcePickerProps) {
           }
         />
         <SourceCard
-          title="ePub öffnen"
-          description="E-Book laden"
+          title={t('source.epubTitle')}
+          description={t('source.epubDesc')}
           tone="purple"
           onClick={() => onSelect('epub')}
           icon={
@@ -71,8 +73,8 @@ export function SourcePicker({ onSelect }: SourcePickerProps) {
           }
         />
         <SourceCard
-          title="Webseite lesen"
-          description="Öffne die Erweiterung auf der gewünschten Seite und wähle „Aktuelle Seite lesen“."
+          title={t('source.pageTitle')}
+          description={t('source.pageDesc')}
           tone="green"
           icon={
             <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">

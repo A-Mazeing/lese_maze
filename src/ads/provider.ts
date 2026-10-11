@@ -5,10 +5,10 @@ import { parseCreatives } from './validate';
 export const DEMO_AD: AdCreative = {
   kind: 'native',
   id: 'demo',
-  sponsor: 'Beispiel GmbH',
-  title: 'Beispielanzeige',
-  text: 'So sieht eine Anzeige aus. Sie erscheint nie während des Lesens.',
-  cta: 'Mehr erfahren',
+  sponsor: 'Example Inc.',
+  title: 'Example ad',
+  text: 'This is what an ad looks like. It never appears while you are reading.',
+  cta: 'Learn more',
   href: 'https://example.com/',
 };
 

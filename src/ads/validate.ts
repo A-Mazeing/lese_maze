@@ -41,7 +41,7 @@ function parseOne(raw: unknown, frameOrigins: readonly string[]): AdCreative | n
   if (!title || !text || !href) return null;
   const imageUrl = r.imageUrl === undefined ? undefined : safeHttpsUrl(r.imageUrl);
   if (imageUrl === null) return null;
-  return { kind: 'native', id, sponsor, title, text, cta: str(r.cta, 24) ?? 'Mehr erfahren', href, imageUrl };
+  return { kind: 'native', id, sponsor, title, text, cta: str(r.cta, 24) ?? '', href, imageUrl };
 }
 
 /**

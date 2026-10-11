@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useReaderDispatch, useReaderSelector } from '@/contexts/ReaderContext';
+import { useT } from '@/i18n';
 import { useEPubViewer } from '@/hooks/useEPubViewer';
 import { useViewerSelection } from '@/hooks/useViewerSelection';
 import {
@@ -24,6 +25,7 @@ interface EPubViewerProps {
  * Textansicht gezeigt – das Lesen selbst ist davon nicht betroffen.
  */
 export function EPubViewer({ className = '', onStartReading }: EPubViewerProps) {
+  const t = useT();
   const dispatch = useReaderDispatch();
   const chapters = useReaderSelector((s) => s.metadata.chapters);
   const startIndex = useReaderSelector((s) => s.startIndex);
@@ -53,7 +55,7 @@ export function EPubViewer({ className = '', onStartReading }: EPubViewerProps) 
     return (
       <div className={`flex flex-col h-full min-h-0 ${className}`}>
         <p role="status" className="flex-shrink-0 px-3 py-2 text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
-          Die Buchansicht ist nicht verfügbar ({status.error}). Der Text wird ohne Layout angezeigt.
+          {t('epubviewer.unavailable', { error: status.error ?? '' })}
         </p>
         <ContentPreview className="flex-1 min-h-0" onStartReading={onStartReading} />
       </div>
@@ -72,7 +74,7 @@ export function EPubViewer({ className = '', onStartReading }: EPubViewerProps) 
           />
           {chapterList.length > 0 && (
             <label className="flex items-center gap-1 text-sm min-w-0">
-              <span className="sr-only">Kapitel</span>
+              <span className="sr-only">{t('epubviewer.chapter')}</span>
               <select
                 value={Math.max(0, currentChapter)}
                 onChange={(e) => goToChapter(Number(e.target.value))}
@@ -101,7 +103,7 @@ export function EPubViewer({ className = '', onStartReading }: EPubViewerProps) 
         <div ref={containerRef} className="absolute inset-0" data-testid="epub-container" />
         {status.phase === 'loading' && (
           <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-900/80 pointer-events-none">
-            <LoadingState message="Kapitel wird geladen…" color="purple" />
+            <LoadingState message={t('epubviewer.loadingChapter')} color="purple" />
           </div>
         )}
         {detached && (
@@ -110,12 +112,12 @@ export function EPubViewer({ className = '', onStartReading }: EPubViewerProps) 
             onClick={resumeFollowing}
             className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 text-sm rounded-full shadow-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
           >
-            Zur aktuellen Stelle
+            {t('viewer.jumpToCurrent')}
           </button>
         )}
       </div>
 
-      <ViewerInstructions text="Klicke ein Wort, um dorthin zu springen. Markiere Text, um Start, Ende oder einen Lesebereich festzulegen." />
+      <ViewerInstructions text={t('view.instructionsSelect')} />
 
       {selection.showContextMenu && (
         <ViewerContextMenu

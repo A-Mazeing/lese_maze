@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, type ReactNode } from 'react';
 import { useReaderDispatch, useReaderSelector } from '@/contexts/ReaderContext';
 import { getEffectiveEnd } from '@/contexts/readerReducer';
+import { formatNumber, useT } from '@/i18n';
 import {
   NavigationButtons,
   PageIndicator,
@@ -20,12 +21,9 @@ export interface DocumentTextViewProps {
   toolbarExtra?: ReactNode;
 }
 
-const INSTRUCTIONS =
-  'Klicke ein Wort, um dorthin zu springen. Ziehe über mehrere Wörter, um Start, Ende oder einen Lesebereich festzulegen.';
-
 /** Abschnitte aus den Seitengrenzen eines PDFs. */
-function pageSections(pageBreaks: readonly number[] | undefined): ViewerSection[] {
-  return (pageBreaks ?? []).map((startIndex, i) => ({ startIndex, label: `Seite ${i + 1}`, id: i + 1 }));
+function pageSections(pageBreaks: readonly number[] | undefined, label: (page: number) => string): ViewerSection[] {
+  return (pageBreaks ?? []).map((startIndex, i) => ({ startIndex, label: label(i + 1), id: i + 1 }));
 }
 
 /**
@@ -33,6 +31,7 @@ function pageSections(pageBreaks: readonly number[] | undefined): ViewerSection[
  * `kind` bestimmt, wie das Dokument gegliedert wird (PDF-Seiten, Kapitel oder gar nicht).
  */
 function DocumentTextView({ className = '', onStartReading, toolbarExtra, kind }: DocumentTextViewProps & { kind: 'pdf' | 'generic' }) {
+  const t = useT();
   const dispatch = useReaderDispatch();
   const viewerRef = useRef<WordViewerHandle>(null);
 
@@ -47,9 +46,9 @@ function DocumentTextView({ className = '', onStartReading, toolbarExtra, kind }
   const currentIndex = useReaderSelector((s) => s.currentIndex);
 
   const sections = useMemo<ViewerSection[]>(() => {
-    if (kind === 'pdf') return pageSections(pageBreaks);
+    if (kind === 'pdf') return pageSections(pageBreaks, (n) => t('view.page', { n }));
     return (chapters ?? []).map((c, i) => ({ startIndex: c.startIndex, label: c.title, id: i }));
-  }, [kind, pageBreaks, chapters]);
+  }, [kind, pageBreaks, chapters, t]);
 
   const currentSection = findSectionForWord(sections, currentIndex);
 
@@ -103,14 +102,14 @@ function DocumentTextView({ className = '', onStartReading, toolbarExtra, kind }
             </>
           ) : (
             <div className="min-w-0">
-              <h2 className="font-semibold truncate">{title || 'Vorschau'}</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{totalWords.toLocaleString('de-DE')} Wörter</p>
+              <h2 className="font-semibold truncate">{title || t('view.preview')}</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('view.wordCount', { count: formatNumber(totalWords) })}</p>
             </div>
           )}
 
           {kind === 'generic' && hasSections && (
             <label className="flex items-center gap-1 text-sm">
-              <span className="sr-only">Abschnitt</span>
+              <span className="sr-only">{t('view.section')}</span>
               <select
                 value={Math.max(0, currentSection)}
                 onChange={(e) => jumpToSection(Number(e.target.value))}
@@ -152,7 +151,7 @@ function DocumentTextView({ className = '', onStartReading, toolbarExtra, kind }
         onStartReading={onStartReading ? () => onStartReading() : () => dispatch({ type: 'PLAY' })}
       />
 
-      <ViewerInstructions text={INSTRUCTIONS} />
+      <ViewerInstructions text={t('view.instructions')} />
     </div>
   );
 }

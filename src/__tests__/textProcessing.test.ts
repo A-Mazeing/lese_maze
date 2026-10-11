@@ -101,10 +101,10 @@ describe('extractTextFromHTML', () => {
 
 describe('formatting helpers', () => {
   it('estimateReadingTime', () => {
-    expect(estimateReadingTime(0, 300)).toBe('Weniger als 1 Minute');
-    expect(estimateReadingTime(300, 300)).toBe('1 Minute');
-    expect(estimateReadingTime(3000, 300)).toBe('10 Minuten');
-    expect(estimateReadingTime(18000, 300)).toBe('1 Stunde');
+    expect(estimateReadingTime(0, 300)).toBe('Less than 1 minute');
+    expect(estimateReadingTime(300, 300)).toBe('1 minute');
+    expect(estimateReadingTime(3000, 300)).toBe('10 minutes');
+    expect(estimateReadingTime(18000, 300)).toBe('1 hour');
     expect(estimateReadingTime(21000, 300)).toBe('1h 10min');
   });
 

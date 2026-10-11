@@ -31,9 +31,9 @@ describe('readAdConfig', () => {
 describe('parseCreatives', () => {
   const good = { id: 'a1', sponsor: 'Firma', title: 'Titel', text: 'Text', href: 'https://example.com/x' };
 
-  it('übernimmt gültige native Anzeigen und setzt Standard-Beschriftung', () => {
+  it('übernimmt gültige native Anzeigen und lässt die Beschriftung leer (Standardtext der Oberfläche)', () => {
     const [ad] = parseCreatives([good], []);
-    expect(ad).toMatchObject({ kind: 'native', id: 'a1', cta: 'Mehr erfahren', href: 'https://example.com/x' });
+    expect(ad).toMatchObject({ kind: 'native', id: 'a1', cta: '', href: 'https://example.com/x' });
   });
 
   it('akzeptiert { ads: [...] }', () => {

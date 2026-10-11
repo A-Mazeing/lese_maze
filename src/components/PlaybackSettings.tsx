@@ -1,4 +1,5 @@
 import { useReaderDispatch, useReaderSelector } from '@/contexts/ReaderContext';
+import { tn, useT } from '@/i18n';
 
 interface PlaybackSettingsProps {
   compact?: boolean;
@@ -8,6 +9,7 @@ interface PlaybackSettingsProps {
  * Playback-Einstellungen für Ramp-up und Pause-Verhalten.
  */
 export function PlaybackSettings({ compact = false }: PlaybackSettingsProps) {
+  const t = useT();
   const dispatch = useReaderDispatch();
   const rampUpEnabled = useReaderSelector((s) => s.rampUpEnabled);
   const rampUpDuration = useReaderSelector((s) => s.rampUpDuration);
@@ -37,7 +39,7 @@ export function PlaybackSettings({ compact = false }: PlaybackSettingsProps) {
             className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 
                        text-blue-600 focus:ring-blue-500 dark:bg-gray-700"
           />
-          <span className="text-gray-700 dark:text-gray-300">Sanfter Start</span>
+          <span className="text-gray-700 dark:text-gray-300">{t('settings.rampUpShort')}</span>
         </label>
 
         {/* Rewind on Pause Toggle */}
@@ -49,7 +51,7 @@ export function PlaybackSettings({ compact = false }: PlaybackSettingsProps) {
             className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 
                        text-blue-600 focus:ring-blue-500 dark:bg-gray-700"
           />
-          <span className="text-gray-700 dark:text-gray-300">Satz bei Pause</span>
+          <span className="text-gray-700 dark:text-gray-300">{t('settings.rewindShort')}</span>
         </label>
       </div>
     );
@@ -58,7 +60,7 @@ export function PlaybackSettings({ compact = false }: PlaybackSettingsProps) {
   return (
     <div className="flex flex-col gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
       <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-        Wiedergabe-Einstellungen
+        {t('settings.title')}
       </h3>
 
       {/* Ramp-up Setting */}
@@ -72,7 +74,7 @@ export function PlaybackSettings({ compact = false }: PlaybackSettingsProps) {
                        text-blue-600 focus:ring-blue-500 dark:bg-gray-700"
           />
           <span className="text-gray-700 dark:text-gray-300">
-            Sanfter Start (Ramp-up)
+            {t('settings.rampUpLong')}
           </span>
         </label>
         
@@ -84,17 +86,17 @@ export function PlaybackSettings({ compact = false }: PlaybackSettingsProps) {
               max="20"
               value={rampUpDuration}
               onChange={(e) => handleRampUpDurationChange(Number(e.target.value))}
-              aria-label="Dauer des sanften Starts in Wörtern"
+              aria-label={t('settings.rampUpDurationLabel')}
               className="w-24 h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
             />
             <span className="text-sm text-gray-500 dark:text-gray-400 w-16">
-              {rampUpDuration} {rampUpDuration === 1 ? 'Chunk' : 'Chunks'}
+              {tn('settings.chunks', rampUpDuration)}
             </span>
           </div>
         )}
         
         <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">
-          Startet langsamer und beschleunigt zur Zielgeschwindigkeit
+          {t('settings.rampUpHint')}
         </p>
       </div>
 
@@ -109,11 +111,11 @@ export function PlaybackSettings({ compact = false }: PlaybackSettingsProps) {
                        text-blue-600 focus:ring-blue-500 dark:bg-gray-700"
           />
           <span className="text-gray-700 dark:text-gray-300">
-            Bei Pause zum Satzanfang
+            {t('settings.rewindLong')}
           </span>
         </label>
         <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">
-          Springt beim Pausieren automatisch zum Anfang des aktuellen Satzes
+          {t('settings.rewindHint')}
         </p>
       </div>
     </div>
