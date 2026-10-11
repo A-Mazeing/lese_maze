@@ -7,6 +7,30 @@ interface RSVPDisplayProps {
 }
 
 /**
+ * Berechnet einen Skalierungsfaktor für die Schriftgröße basierend auf der Wortlänge.
+ * Lange Wörter werden automatisch verkleinert, damit sie in die Box passen.
+ */
+function calculateFontScale(words: string[], baseFontSize: number): number {
+  if (words.length === 0) return 1;
+  
+  // Maximale Zeichenanzahl die bei normaler Größe komfortabel passt
+  // Bei größerer Schriftgröße passen weniger Zeichen
+  const maxComfortableLength = Math.max(10, Math.round(400 / baseFontSize));
+  
+  // Gesamtlänge aller Wörter plus Leerzeichen zwischen ihnen
+  const totalLength = words.reduce((sum, word) => sum + word.length, 0) + (words.length - 1);
+  const longestWord = Math.max(...words.map(w => w.length));
+  
+  // Verwende das Maximum aus Gesamtlänge und längstem Wort für die Berechnung
+  const effectiveLength = Math.max(totalLength / words.length, longestWord);
+  
+  if (effectiveLength <= maxComfortableLength) return 1;
+  
+  // Skaliere herunter, aber nicht unter 40% der Originalgröße
+  return Math.max(0.4, maxComfortableLength / effectiveLength);
+}
+
+/**
  * RSVP Display Komponente mit ORP-Hervorhebung.
  * Unterstützt die Anzeige von 1-4 Wörtern gleichzeitig.
  * Bei mehreren Wörtern wird das ORP nur beim mittleren Wort markiert.
@@ -60,6 +84,10 @@ export function RSVPDisplay({ fontSize = 48 }: RSVPDisplayProps) {
   if (wordsPerChunk === 1) {
     const orpWord = formatWordWithORP(chunkWords[0] || '');
     
+    // Dynamische Schriftgröße basierend auf Wortlänge
+    const fontScale = calculateFontScale(chunkWords, fontSize);
+    const scaledFontSize = Math.round(fontSize * fontScale);
+    
     return (
       <div className="relative flex flex-col items-center justify-center h-64">
         {/* ORP Marker (Dreieck oben) */}
@@ -73,12 +101,12 @@ export function RSVPDisplay({ fontSize = 48 }: RSVPDisplayProps) {
         {/* Wort-Container */}
         <div 
           className="flex items-center justify-center font-mono tracking-wide"
-          style={{ fontSize: `${fontSize}px` }}
+          style={{ fontSize: `${scaledFontSize}px` }}
         >
           {/* Vor ORP - rechtsbündig */}
           <span 
             className="text-right text-gray-900 dark:text-gray-100"
-            style={{ minWidth: `${fontSize * 3}px` }}
+            style={{ minWidth: `${scaledFontSize * 3}px` }}
           >
             {orpWord.before}
           </span>
@@ -91,7 +119,7 @@ export function RSVPDisplay({ fontSize = 48 }: RSVPDisplayProps) {
           {/* Nach ORP - linksbündig */}
           <span 
             className="text-left text-gray-900 dark:text-gray-100"
-            style={{ minWidth: `${fontSize * 3}px` }}
+            style={{ minWidth: `${scaledFontSize * 3}px` }}
           >
             {orpWord.after}
           </span>
@@ -106,8 +134,10 @@ export function RSVPDisplay({ fontSize = 48 }: RSVPDisplayProps) {
   }
 
   // Multi-Word-Modus (2-4 Wörter)
-  // Reduziere Schriftgröße leicht für bessere Lesbarkeit bei mehreren Wörtern
-  const adjustedFontSize = Math.round(fontSize * (wordsPerChunk === 2 ? 0.9 : wordsPerChunk === 3 ? 0.8 : 0.7));
+  // Reduziere Schriftgröße basierend auf Anzahl der Wörter und Wortlänge
+  const baseMultiWordFontSize = Math.round(fontSize * (wordsPerChunk === 2 ? 0.9 : wordsPerChunk === 3 ? 0.8 : 0.7));
+  const fontScale = calculateFontScale(chunkWords, baseMultiWordFontSize);
+  const adjustedFontSize = Math.round(baseMultiWordFontSize * fontScale);
   
   return (
     <div className="relative flex flex-col items-center justify-center h-64">
@@ -150,11 +180,11 @@ export function RSVPDisplay({ fontSize = 48 }: RSVPDisplayProps) {
             );
           }
           
-          // Normales Wort ohne ORP-Markierung
+          // Normales Wort ohne ORP-Markierung - gleiche Farbe wie die anderen Wörter
           return (
             <span 
               key={index} 
-              className="text-gray-600 dark:text-gray-400"
+              className="text-gray-900 dark:text-gray-100"
             >
               {word}
             </span>

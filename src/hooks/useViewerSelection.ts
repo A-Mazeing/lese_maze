@@ -38,11 +38,15 @@ export function useViewerSelection(options: UseViewerSelectionOptions = {}) {
   // Refs for tracking selection state
   const isMouseDownRef = useRef(false);
   const lastProcessedSelectionRef = useRef('');
+  // Ref to store the selected range to avoid stale closure issues
+  const selectedWordRangeRef = useRef<WordRange | null>(null);
 
   /**
    * Show context menu at position with selected range.
    */
   const showMenu = useCallback((position: { x: number; y: number }, range: WordRange) => {
+    // Store in ref for reliable access in handleContextMenuAction
+    selectedWordRangeRef.current = range;
     setState({
       showContextMenu: true,
       contextMenuPosition: position,
@@ -59,43 +63,55 @@ export function useViewerSelection(options: UseViewerSelectionOptions = {}) {
       showContextMenu: false,
       selectedWordRange: null,
     }));
+    // Clear ref after a small delay to ensure dispatches complete first
+    setTimeout(() => {
+      selectedWordRangeRef.current = null;
+    }, 0);
     lastProcessedSelectionRef.current = '';
   }, []);
 
   /**
    * Handle context menu action.
+   * Uses ref to avoid stale closure issues with selectedWordRange.
    */
   const handleContextMenuAction = useCallback((action: ContextMenuAction) => {
-    const range = state.selectedWordRange;
+    // Use ref instead of state to avoid stale closure issues
+    const range = selectedWordRangeRef.current;
     if (!range) return;
 
+    // Copy values locally to ensure they're captured before any state changes
+    const startIdx = range.start;
+    const endIdx = range.end;
+
+    // Execute dispatches first, then clean up
     switch (action) {
       case 'start':
-        dispatch({ type: 'SET_START_INDEX', payload: range.start });
-        dispatch({ type: 'SET_INDEX', payload: range.start });
+        dispatch({ type: 'SET_START_INDEX', payload: startIdx });
+        dispatch({ type: 'SET_INDEX', payload: startIdx });
         break;
       case 'end':
-        dispatch({ type: 'SET_END_INDEX', payload: range.end });
+        dispatch({ type: 'SET_END_INDEX', payload: endIdx });
         break;
       case 'range':
         dispatch({
           type: 'SET_READING_RANGE',
-          payload: { startIndex: range.start, endIndex: range.end }
+          payload: { startIndex: startIdx, endIndex: endIdx }
         });
         break;
       case 'read':
         dispatch({
           type: 'SET_READING_RANGE',
-          payload: { startIndex: range.start, endIndex: range.end }
+          payload: { startIndex: startIdx, endIndex: endIdx }
         });
-        dispatch({ type: 'SET_INDEX', payload: range.start });
-        onStartReading?.(range);
+        dispatch({ type: 'SET_INDEX', payload: startIdx });
+        onStartReading?.({ start: startIdx, end: endIdx });
         break;
     }
 
+    // Clean up after dispatches
     hideMenu();
     window.getSelection()?.removeAllRanges();
-  }, [state.selectedWordRange, dispatch, onStartReading, hideMenu]);
+  }, [dispatch, onStartReading, hideMenu]);
 
   /**
    * Reset reading range to full document.
