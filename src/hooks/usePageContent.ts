@@ -1,140 +1,140 @@
-import { useState, useCallback } from 'react';
-import { useReader } from '@/contexts/ReaderContext';
-import { tokenizeTextWithStructure, extractTextFromHTML } from '@/utils/textProcessor';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useReaderDispatch } from '@/contexts/ReaderContext';
+import {
+  PAGE_CONTENT_KEY_PREFIX,
+  PAGE_CONTENT_MAX_AGE_MS,
+  type StoredPageContent,
+} from '@/types/messages';
+import { cleanText, tokenizeTextWithStructure } from '@/utils/textProcessor';
+import { fingerprintWords, generateDocumentId } from '@/utils/storage';
+import type { ParseResult } from './usePDFParser';
 
-interface PageContentState {
+export interface PageContentState {
   isLoading: boolean;
   error: string | null;
   title: string | null;
   url: string | null;
-  originalContent: string | null;
+  /** Der Benutzer hatte Text markiert; nur dieser wird gelesen. */
+  fromSelection: boolean;
+  /** Der Seitentext wurde wegen des Größenlimits gekürzt. */
+  truncated: boolean;
 }
 
-interface StoredPageContent {
-  content: string;
-  title: string;
-  url: string;
-  timestamp: number;
+const initialState: PageContentState = {
+  isLoading: false,
+  error: null,
+  title: null,
+  url: null,
+  fromSelection: false,
+  truncated: false,
+};
+
+function isStoredPageContent(value: unknown): value is StoredPageContent {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.text === 'string' &&
+    typeof v.title === 'string' &&
+    typeof v.url === 'string' &&
+    typeof v.timestamp === 'number'
+  );
+}
+
+function hostnameOf(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return '';
+  }
 }
 
 /**
- * Hook zum Extrahieren von Text aus der aktuellen Browser-Seite.
- * Liest Inhalt aus chrome.storage.session (gesetzt vom Service Worker).
+ * Lädt den vom Service Worker zwischengespeicherten Seiteninhalt.
+ *
+ * Die Reader-URL trägt nur einen Schlüssel (`?mode=page&key=…`); der Text selbst liegt in
+ * chrome.storage.session. Er bleibt dort bis zum Ablauf (5 Minuten) bzw. bis der Service
+ * Worker aufräumt – so überlebt ein Neuladen des Reader-Tabs.
  */
 export function usePageContent() {
-  const { dispatch } = useReader();
-  const [state, setState] = useState<PageContentState>({
-    isLoading: false,
-    error: null,
-    title: null,
-    url: null,
-    originalContent: null,
-  });
+  const dispatch = useReaderDispatch();
+  const [state, setState] = useState<PageContentState>(initialState);
+  const mountedRef = useRef(true);
 
-  /**
-   * Lädt den Seiteninhalt aus chrome.storage.session.
-   * Der Service Worker speichert den Inhalt dort BEVOR der Reader-Tab geöffnet wird.
-   */
-  const loadCurrentPage = useCallback(async () => {
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
-    try {
-      // Prüfe ob wir im Extension-Kontext sind
-      if (typeof chrome !== 'undefined' && chrome.storage?.session) {
-        // Lese aus session storage (gesetzt vom Service Worker)
-        const result = await chrome.storage.session.get('pageContent');
-        const pageContent = result.pageContent as StoredPageContent | undefined;
-        
-        if (pageContent && pageContent.content) {
-          // Prüfe ob der Inhalt nicht zu alt ist (max 5 Minuten)
-          const maxAge = 5 * 60 * 1000; // 5 Minuten
-          if (Date.now() - pageContent.timestamp > maxAge) {
-            throw new Error('Seiteninhalt ist abgelaufen. Bitte erneut laden.');
-          }
+  const loadPageContent = useCallback(
+    async (key: string | null): Promise<ParseResult> => {
+      const fail = (error: string): ParseResult => {
+        if (mountedRef.current) setState((prev) => ({ ...prev, isLoading: false, error }));
+        return { success: false, error };
+      };
 
-          const text = extractTextFromHTML(pageContent.content);
-          const { words, sentenceBreaks, paragraphBreaks } = tokenizeTextWithStructure(text);
+      setState({ ...initialState, isLoading: true });
 
-          if (words.length === 0) {
-            throw new Error('Keine lesbaren Wörter auf der Seite gefunden.');
-          }
+      if (!key) {
+        return fail('Kein Seiteninhalt angegeben. Öffne die Erweiterung auf der gewünschten Webseite und wähle „Aktuelle Seite lesen“.');
+      }
+      if (typeof chrome === 'undefined' || !chrome.storage?.session) {
+        return fail('Seiteninhalte sind nur innerhalb der Erweiterung verfügbar.');
+      }
 
-          // Speichere Original-Content für Preview
-          dispatch({ 
-            type: 'SET_CONTENT', 
-            payload: { 
-              words, 
-              originalContent: text,
-              title: pageContent.title || 'Aktuelle Seite',
-              sourceType: 'page',
-              sentenceBreaks,
-              paragraphBreaks,
-            } 
-          });
-          
-          setState({
-            isLoading: false,
-            error: null,
-            title: pageContent.title || 'Aktuelle Seite',
-            url: pageContent.url,
-            originalContent: text,
-          });
+      try {
+        const storageKey = `${PAGE_CONTENT_KEY_PREFIX}${key}`;
+        const stored = (await chrome.storage.session.get(storageKey))[storageKey] as unknown;
 
-          // Lösche den session storage nach dem Laden
-          await chrome.storage.session.remove('pageContent');
-
-          return { success: true, wordCount: words.length };
+        if (!isStoredPageContent(stored)) {
+          return fail('Der Seiteninhalt wurde nicht gefunden. Bitte lade ihn über das Erweiterungsmenü erneut.');
+        }
+        if (Date.now() - stored.timestamp > PAGE_CONTENT_MAX_AGE_MS) {
+          return fail('Der Seiteninhalt ist abgelaufen. Bitte lade ihn über das Erweiterungsmenü erneut.');
         }
 
-        throw new Error('Kein Seiteninhalt gefunden. Bitte nutze "Read Current Page" vom Popup.');
-      } else {
-        // Fallback für Entwicklung ohne Extension-Kontext
-        const text = document.body.innerText;
-        const { words, sentenceBreaks, paragraphBreaks } = tokenizeTextWithStructure(text);
-        
-        dispatch({ 
-          type: 'SET_CONTENT', 
-          payload: { 
-            words, 
-            originalContent: text,
-            title: document.title,
+        const { words, sentenceBreaks, paragraphBreaks } = tokenizeTextWithStructure(cleanText(stored.text));
+        if (words.length === 0) return fail('Auf der Seite wurden keine lesbaren Wörter gefunden.');
+
+        const host = hostnameOf(stored.url);
+        const title = stored.title.trim() || host || 'Webseite';
+        dispatch({
+          type: 'SET_CONTENT',
+          payload: {
+            words,
+            originalContent: words.join(' '),
+            title,
             sourceType: 'page',
             sentenceBreaks,
             paragraphBreaks,
-          } 
-        });
-        
-        setState({
-          isLoading: false,
-          error: null,
-          title: document.title,
-          url: window.location.href,
-          originalContent: text,
+            documentId: generateDocumentId(title, 'page', `${stored.url}|${fingerprintWords(words)}`),
+          },
         });
 
+        if (mountedRef.current) {
+          setState({
+            isLoading: false,
+            error: null,
+            title,
+            url: stored.url,
+            fromSelection: Boolean(stored.fromSelection),
+            truncated: Boolean(stored.truncated),
+          });
+        }
         return { success: true, wordCount: words.length };
+      } catch (error) {
+        console.error('[page] Seiteninhalt konnte nicht geladen werden:', error);
+        return fail(error instanceof Error ? error.message : 'Der Seiteninhalt konnte nicht geladen werden.');
       }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Fehler beim Laden der Seite';
-      setState(prev => ({ ...prev, isLoading: false, error: errorMessage }));
-      return { success: false, error: errorMessage };
-    }
-  }, [dispatch]);
+    },
+    [dispatch],
+  );
 
   const reset = useCallback(() => {
-    setState({
-      isLoading: false,
-      error: null,
-      title: null,
-      url: null,
-      originalContent: null,
-    });
-    dispatch({ type: 'RESET' });
+    setState(initialState);
+    dispatch({ type: 'CLEAR_CONTENT' });
   }, [dispatch]);
 
-  return {
-    ...state,
-    loadCurrentPage,
-    reset,
-  };
+  return { ...state, loadPageContent, reset };
 }

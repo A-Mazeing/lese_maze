@@ -1,77 +1,86 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
 import { getSettings, saveSettings } from '@/utils/storage';
 
-type Theme = 'light' | 'dark' | 'system';
+export type Theme = 'light' | 'dark' | 'system';
+export type ResolvedTheme = 'light' | 'dark';
 
 interface ThemeContextType {
   theme: Theme;
-  resolvedTheme: 'light' | 'dark';
+  resolvedTheme: ResolvedTheme;
   setTheme: (theme: Theme) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-function getSystemTheme(): 'light' | 'dark' {
-  if (typeof window !== 'undefined') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-  return 'light';
+const DARK_QUERY = '(prefers-color-scheme: dark)';
+
+function getMediaQuery(): MediaQueryList | null {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia(DARK_QUERY) : null;
+}
+
+function getSystemTheme(): ResolvedTheme {
+  return getMediaQuery()?.matches ? 'dark' : 'light';
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('system');
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(getSystemTheme());
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(getSystemTheme);
 
-  // Lade Theme aus Storage beim Start
+  const resolvedTheme: ResolvedTheme = theme === 'system' ? systemTheme : theme;
+
+  // Gespeichertes Theme laden.
   useEffect(() => {
-    getSettings().then(settings => {
-      setThemeState(settings.theme);
+    let cancelled = false;
+    void getSettings().then((settings) => {
+      if (!cancelled) setThemeState(settings.theme);
     });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Aktualisiere resolved theme wenn sich theme ändert
+  // Systemeinstellung beobachten.
   useEffect(() => {
-    const updateResolvedTheme = () => {
-      if (theme === 'system') {
-        setResolvedTheme(getSystemTheme());
-      } else {
-        setResolvedTheme(theme);
-      }
-    };
+    const query = getMediaQuery();
+    if (!query) return;
+    const onChange = () => setSystemTheme(query.matches ? 'dark' : 'light');
+    onChange();
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
 
-    updateResolvedTheme();
-
-    // Listener für System-Theme-Änderungen
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = () => {
-      if (theme === 'system') {
-        setResolvedTheme(getSystemTheme());
-      }
-    };
-
-    mediaQuery.addEventListener('change', handler);
-    return () => mediaQuery.removeEventListener('change', handler);
-  }, [theme]);
-
-  // Wende Theme auf document an
+  // Änderungen aus anderen Extension-Seiten (Popup ↔ Reader) übernehmen.
   useEffect(() => {
-    document.documentElement.classList.remove('light', 'dark');
-    document.documentElement.classList.add(resolvedTheme);
+    if (typeof chrome === 'undefined' || !chrome.storage?.onChanged) return;
+    const listener = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+      if (area !== 'local') return;
+      void getSettings().then((settings) => setThemeState(settings.theme));
+      void changes;
+    };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
+  }, []);
+
+  // Klasse und color-scheme am <html>-Element setzen (vor dem Malen, damit nichts aufblitzt).
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(resolvedTheme);
+    root.style.colorScheme = resolvedTheme;
   }, [resolvedTheme]);
 
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
-    saveSettings({ theme: newTheme });
-  };
+  const setTheme = useCallback((next: Theme) => {
+    setThemeState(next);
+    void saveSettings({ theme: next }).catch((error) =>
+      console.error('[theme] Theme konnte nicht gespeichert werden:', error),
+    );
+  }, []);
 
-  return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  const value = useMemo(() => ({ theme, resolvedTheme, setTheme }), [theme, resolvedTheme, setTheme]);
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
-export function useTheme() {
+export function useTheme(): ThemeContextType {
   const context = useContext(ThemeContext);
   if (context === undefined) {
     throw new Error('useTheme must be used within a ThemeProvider');

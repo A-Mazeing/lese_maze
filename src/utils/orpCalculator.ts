@@ -1,58 +1,68 @@
 import type { ORPWord } from '@/types';
 
-/**
- * Berechnet den Optimal Recognition Point (ORP) eines Wortes.
- * Der ORP ist der Punkt, auf den das Auge beim Lesen fokussiert.
- * Er liegt typischerweise bei etwa 35% der Wortlänge.
- */
-export function calculateORP(word: string): number {
-  const length = word.length;
-  
-  if (length <= 1) return 0;
-  if (length === 2) return 0;
-  if (length === 3) return 1;
+const LEADING_NON_WORD_RE = /^[^\p{L}\p{N}]+/u;
+const TRAILING_NON_WORD_RE = /[^\p{L}\p{N}]+$/u;
+
+/** ORP-Position innerhalb eines Wortkerns der Länge `length` (ohne Satzzeichen). */
+function orpPositionForLength(length: number): number {
+  if (length <= 2) return 0;
   if (length <= 5) return 1;
   if (length <= 9) return 2;
   if (length <= 13) return 3;
-  
-  // Für längere Wörter: ca. 35% Position
   return Math.floor(length * 0.35);
 }
 
 /**
- * Formatiert ein Wort mit ORP-Markierung in drei Teile:
- * - before: Buchstaben vor dem ORP
- * - orp: Der ORP-Buchstabe (wird rot dargestellt)
- * - after: Buchstaben nach dem ORP
+ * Berechnet den Optimal Recognition Point (ORP) eines Wortes als Index in der
+ * Zeichenfolge (nach Unicode-Codepoints). Führende/abschließende Satzzeichen
+ * (Anführungszeichen, Klammern, Punkte) zählen nicht zur Wortlänge, damit der
+ * Fixationspunkt bei „Hallo“ auf dem Buchstaben und nicht auf dem Anführungszeichen liegt.
+ */
+export function calculateORP(word: string): number {
+  const chars = Array.from(word);
+  if (chars.length === 0) return 0;
+
+  const leading = Array.from(word.match(LEADING_NON_WORD_RE)?.[0] ?? '').length;
+  if (leading >= chars.length) return 0; // nur Satzzeichen
+  const trailing = Array.from(word.match(TRAILING_NON_WORD_RE)?.[0] ?? '').length;
+  const coreLength = Math.max(1, chars.length - leading - trailing);
+
+  return Math.min(chars.length - 1, leading + orpPositionForLength(coreLength));
+}
+
+/**
+ * Formatiert ein Wort mit ORP-Markierung in drei Teile
+ * (vor dem ORP, ORP-Buchstabe, nach dem ORP). Surrogate-Paare (Emoji) bleiben intakt.
  */
 export function formatWordWithORP(word: string): ORPWord {
-  if (!word || word.length === 0) {
+  if (!word) {
     return { before: '', orp: '', after: '', fullWord: '' };
   }
-  
+
+  const chars = Array.from(word);
   const orpIndex = calculateORP(word);
-  
+
   return {
-    before: word.slice(0, orpIndex),
-    orp: word[orpIndex] || '',
-    after: word.slice(orpIndex + 1),
+    before: chars.slice(0, orpIndex).join(''),
+    orp: chars[orpIndex] ?? '',
+    after: chars.slice(orpIndex + 1).join(''),
     fullWord: word,
   };
 }
 
 /**
  * Berechnet die Anzeigedauer eines Wortes in Millisekunden.
- * Längere Wörter bekommen mehr Zeit.
+ * Längere Wörter bekommen etwas mehr Zeit; Satzzeichen verlängern bewusst nicht
+ * (gleichmäßiger Lesefluss).
  */
 export function calculateWordDuration(word: string, baseWpm: number): number {
-  const baseMs = (60 * 1000) / baseWpm;
-  
-  // Längere Wörter bekommen mehr Zeit
+  const wpm = Number.isFinite(baseWpm) && baseWpm > 0 ? baseWpm : 300;
+  const baseMs = 60_000 / wpm;
+  const length = Array.from(word).length;
+
   let multiplier = 1;
-  if (word.length > 8) multiplier += 0.2;
-  if (word.length > 12) multiplier += 0.3;
-  
-  // Keine Pause bei Satzzeichen - gleichmäßiger Lesefluss
-  
+  if (length > 8) multiplier += 0.2;
+  if (length > 12) multiplier += 0.3;
+
   return Math.round(baseMs * multiplier);
 }

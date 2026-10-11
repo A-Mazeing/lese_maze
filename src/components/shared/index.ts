@@ -1,14 +1,13 @@
 // Shared UI Components
 
 // Document Selector
-export { 
-  DocumentSelector, 
-  PDF_CONFIG, 
-  EPUB_CONFIG,
+export {
+  DocumentSelector,
   type DocumentTypeConfig,
   type DocumentParserState,
   type DocumentMetadataDisplay,
 } from './DocumentSelector';
+export { PDF_CONFIG, EPUB_CONFIG } from './documentConfigs';
 
 // Loading and Error States
 export {
@@ -22,7 +21,6 @@ export {
 // Viewer Context Menu
 export {
   ViewerContextMenu,
-  useContextMenu,
   type WordRange,
   type ContextMenuAction,
 } from './ViewerContextMenu';
@@ -34,5 +32,6 @@ export {
   StartReadingButton,
   ViewerToolbar,
   ReadingRangeInfo,
+  ReadingRangeEstimate,
   ViewerInstructions,
 } from './ViewerToolbar';

@@ -1,39 +1,40 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
-import { crx } from '@crxjs/vite-plugin'
-import manifest from './public/manifest.json'
-import { resolve } from 'path'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import { crx } from '@crxjs/vite-plugin';
+import { fileURLToPath, URL } from 'node:url';
+import manifest from './manifest.config';
+
+const srcDir = fileURLToPath(new URL('./src', import.meta.url));
 
 export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-    crx({ manifest }),
-  ],
+  plugins: [react(), tailwindcss(), crx({ manifest })],
   resolve: {
-    alias: {
-      '@': resolve(__dirname, 'src'),
-    },
+    alias: { '@': srcDir },
   },
   build: {
-    chunkSizeWarningLimit: 1000,
+    target: 'chrome110',
+    chunkSizeWarningLimit: 1500,
     rollupOptions: {
+      // Der Reader wird per chrome.tabs.create geöffnet und steht deshalb nicht im
+      // Manifest. Popup und Service Worker erkennt @crxjs automatisch.
       input: {
-        main: resolve(__dirname, 'index.html'),
-        popup: resolve(__dirname, 'src/popup/index.html'),
-        reader: resolve(__dirname, 'src/reader/index.html'),
+        reader: fileURLToPath(new URL('./src/reader/index.html', import.meta.url)),
       },
       output: {
-        manualChunks: {
-          'pdf-worker': ['pdfjs-dist'],
-          'epub': ['epubjs'],
-          'react-vendor': ['react', 'react-dom'],
+        manualChunks(id) {
+          if (id.includes('node_modules/pdfjs-dist')) return 'pdfjs';
+          if (id.includes('node_modules/epubjs') || id.includes('node_modules/jszip')) return 'epub';
+          if (id.includes('node_modules/react-virtuoso')) return 'virtuoso';
+          if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react-vendor';
+          return undefined;
         },
       },
     },
   },
-  optimizeDeps: {
-    include: ['pdfjs-dist', 'epubjs'],
+  server: {
+    port: 5173,
+    strictPort: true,
+    hmr: { port: 5173 },
   },
-})
+});

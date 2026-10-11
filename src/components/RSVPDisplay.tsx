@@ -1,50 +1,40 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
+import { useReaderSelector } from '@/contexts/ReaderContext';
+import { getEffectiveEnd } from '@/contexts/readerReducer';
 import { formatWordWithORP } from '@/utils/orpCalculator';
-import { useReader } from '@/contexts/ReaderContext';
 
 interface RSVPDisplayProps {
   fontSize?: number;
 }
 
-/**
- * RSVP Display Komponente mit ORP-Hervorhebung.
- * Unterstützt die Anzeige von 1-4 Wörtern gleichzeitig.
- * Bei mehreren Wörtern wird das ORP nur beim mittleren Wort markiert.
- */
-export function RSVPDisplay({ fontSize = 48 }: RSVPDisplayProps) {
-  const { state } = useReader();
-  
-  // Hole die Wörter für den aktuellen Chunk
-  const displayData = useMemo(() => {
-    const { words, currentIndex, wordsPerChunk, endIndex } = state;
-    const effectiveEnd = endIndex ?? words.length - 1;
-    
-    // Bestimme wie viele Wörter tatsächlich angezeigt werden können
-    const availableWords = Math.min(wordsPerChunk, effectiveEnd - currentIndex + 1);
-    const chunkWords: string[] = [];
-    
-    for (let i = 0; i < availableWords; i++) {
-      const word = words[currentIndex + i];
-      if (word) {
-        chunkWords.push(word);
-      }
-    }
-    
-    // Bestimme den Index für das ORP-Wort (mittleres Wort)
-    // Bei 1 Wort: Index 0
-    // Bei 2 Wörtern: Index 1 (zweites Wort)
-    // Bei 3 Wörtern: Index 1 (mittleres)
-    // Bei 4 Wörtern: Index 2 (drittes Wort)
-    const orpWordIndex = chunkWords.length <= 1 ? 0 : Math.floor(chunkWords.length / 2);
-    
-    return {
-      chunkWords,
-      orpWordIndex,
-      wordsPerChunk,
-    };
-  }, [state]);
+/** Bis zu dieser Zeichenzahl je Seite des ORP-Buchstabens wird die Schrift nicht verkleinert. */
+const MAX_CHARS_PER_SIDE = 12;
+const MULTI_WORD_SCALE: Record<number, number> = { 2: 0.9, 3: 0.8, 4: 0.7 };
 
-  if (state.words.length === 0) {
+/**
+ * RSVP-Anzeige mit ORP-Hervorhebung (1-4 Wörter gleichzeitig).
+ *
+ * Layout: Ein dreispaltiges Raster (`1fr auto 1fr`) hält den ORP-Buchstaben exakt in der
+ * Mitte – unabhängig von der Länge des Wortes davor/danach und von der Schriftart.
+ * (Feste `minWidth`-Werte, wie zuvor, verschieben das Wort ab einer bestimmten Länge.)
+ */
+export const RSVPDisplay = memo(function RSVPDisplay({ fontSize = 48 }: RSVPDisplayProps) {
+  const words = useReaderSelector((s) => s.words);
+  const currentIndex = useReaderSelector((s) => s.currentIndex);
+  const wordsPerChunk = useReaderSelector((s) => s.wordsPerChunk);
+  const endIndex = useReaderSelector((s) => s.endIndex);
+
+  const chunk = useMemo(() => {
+    const end = getEffectiveEnd({ words, endIndex });
+    const last = Math.min(end, currentIndex + wordsPerChunk - 1);
+    const result: string[] = [];
+    for (let i = currentIndex; i <= last; i++) {
+      if (words[i]) result.push(words[i]);
+    }
+    return result;
+  }, [words, currentIndex, wordsPerChunk, endIndex]);
+
+  if (words.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <p className="text-gray-500 dark:text-gray-400 text-lg">
@@ -54,113 +44,74 @@ export function RSVPDisplay({ fontSize = 48 }: RSVPDisplayProps) {
     );
   }
 
-  const { chunkWords, orpWordIndex, wordsPerChunk } = displayData;
+  const label = chunk.join(' ');
 
-  // Single-Word-Modus (klassisches RSVP)
-  if (wordsPerChunk === 1) {
-    const orpWord = formatWordWithORP(chunkWords[0] || '');
-    
+  // Klassisches RSVP: ein Wort, ORP-Buchstabe fest in der Mitte.
+  if (chunk.length <= 1) {
+    const orp = formatWordWithORP(chunk[0] ?? '');
+    const longestSide = Math.max(Array.from(orp.before).length, Array.from(orp.after).length);
+    const size = Math.round(fontSize * Math.min(1, MAX_CHARS_PER_SIDE / Math.max(1, longestSide)));
+
     return (
-      <div className="relative flex flex-col items-center justify-center h-64">
-        {/* ORP Marker (Dreieck oben) */}
-        <div 
-          className="absolute top-8 text-red-500 dark:text-red-400"
-          style={{ fontSize: '16px' }}
+      <div
+        className="relative flex flex-col items-center justify-center h-64 overflow-hidden"
+        role="img"
+        aria-label={label}
+        data-testid="rsvp-display"
+      >
+        <div aria-hidden="true" className="absolute top-8 text-red-500 dark:text-red-400 text-base">▼</div>
+
+        <div
+          aria-hidden="true"
+          className="grid w-full items-baseline font-mono tracking-wide whitespace-nowrap select-none"
+          style={{ gridTemplateColumns: '1fr auto 1fr', fontSize: `${size}px` }}
         >
-          ▼
+          <span className="justify-self-end text-gray-900 dark:text-gray-100" data-testid="rsvp-before">{orp.before}</span>
+          <span className="text-red-500 dark:text-red-400 font-bold" data-testid="rsvp-orp">{orp.orp}</span>
+          <span className="justify-self-start text-gray-900 dark:text-gray-100" data-testid="rsvp-after">{orp.after}</span>
         </div>
 
-        {/* Wort-Container */}
-        <div 
-          className="flex items-center justify-center font-mono tracking-wide"
-          style={{ fontSize: `${fontSize}px` }}
-        >
-          {/* Vor ORP - rechtsbündig */}
-          <span 
-            className="text-right text-gray-900 dark:text-gray-100"
-            style={{ minWidth: `${fontSize * 3}px` }}
-          >
-            {orpWord.before}
-          </span>
-
-          {/* ORP Buchstabe - rot */}
-          <span className="text-red-500 dark:text-red-400 font-bold">
-            {orpWord.orp}
-          </span>
-
-          {/* Nach ORP - linksbündig */}
-          <span 
-            className="text-left text-gray-900 dark:text-gray-100"
-            style={{ minWidth: `${fontSize * 3}px` }}
-          >
-            {orpWord.after}
-          </span>
-        </div>
-
-        {/* ORP Marker (Linie unten) */}
-        <div 
-          className="absolute bottom-8 w-0.5 h-4 bg-red-500 dark:bg-red-400"
-        />
+        <div aria-hidden="true" className="absolute bottom-8 w-0.5 h-4 bg-red-500 dark:bg-red-400" />
       </div>
     );
   }
 
-  // Multi-Word-Modus (2-4 Wörter)
-  // Reduziere Schriftgröße leicht für bessere Lesbarkeit bei mehreren Wörtern
-  const adjustedFontSize = Math.round(fontSize * (wordsPerChunk === 2 ? 0.9 : wordsPerChunk === 3 ? 0.8 : 0.7));
-  
+  // Mehrere Wörter: ORP nur im mittleren Wort markiert.
+  const size = Math.round(fontSize * (MULTI_WORD_SCALE[chunk.length] ?? 0.7));
+  const orpWordIndex = Math.floor(chunk.length / 2);
+
   return (
-    <div className="relative flex flex-col items-center justify-center h-64">
-      {/* Wort-Container */}
-      <div 
-        className="flex items-center justify-center gap-3 font-mono tracking-wide"
-        style={{ fontSize: `${adjustedFontSize}px` }}
+    <div
+      className="relative flex flex-col items-center justify-center h-64 overflow-hidden"
+      role="img"
+      aria-label={label}
+      data-testid="rsvp-display"
+    >
+      <div
+        aria-hidden="true"
+        className="flex items-center justify-center gap-3 font-mono tracking-wide whitespace-nowrap select-none"
+        style={{ fontSize: `${size}px` }}
       >
-        {chunkWords.map((word, index) => {
-          const isOrpWord = index === orpWordIndex;
-          
-          if (isOrpWord) {
-            // ORP-Wort mit Markierung
-            const orpWord = formatWordWithORP(word);
+        {chunk.map((word, index) => {
+          if (index !== orpWordIndex) {
             return (
-              <span key={index} className="relative flex items-center">
-                {/* ORP Marker (Dreieck oben) */}
-                <div 
-                  className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-red-500 dark:text-red-400"
-                  style={{ fontSize: '12px' }}
-                >
-                  ▼
-                </div>
-                
-                <span className="text-gray-900 dark:text-gray-100">
-                  {orpWord.before}
-                </span>
-                <span className="text-red-500 dark:text-red-400 font-bold">
-                  {orpWord.orp}
-                </span>
-                <span className="text-gray-900 dark:text-gray-100">
-                  {orpWord.after}
-                </span>
-                
-                {/* ORP Marker (Linie unten) */}
-                <div 
-                  className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-0.5 h-3 bg-red-500 dark:bg-red-400"
-                />
+              <span key={index} className="text-gray-600 dark:text-gray-400">
+                {word}
               </span>
             );
           }
-          
-          // Normales Wort ohne ORP-Markierung
+          const orp = formatWordWithORP(word);
           return (
-            <span 
-              key={index} 
-              className="text-gray-600 dark:text-gray-400"
-            >
-              {word}
+            <span key={index} className="relative flex items-center">
+              <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-red-500 dark:text-red-400 text-xs">▼</span>
+              <span className="text-gray-900 dark:text-gray-100">{orp.before}</span>
+              <span className="text-red-500 dark:text-red-400 font-bold">{orp.orp}</span>
+              <span className="text-gray-900 dark:text-gray-100">{orp.after}</span>
+              <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-0.5 h-3 bg-red-500 dark:bg-red-400" />
             </span>
           );
         })}
       </div>
     </div>
   );
-}
+});

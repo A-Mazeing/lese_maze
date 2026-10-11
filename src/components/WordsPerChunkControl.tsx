@@ -1,4 +1,4 @@
-import { useRSVP } from '@/hooks/useRSVP';
+import { useReaderDispatch, useReaderSelector } from '@/contexts/ReaderContext';
 
 interface WordsPerChunkControlProps {
   compact?: boolean;
@@ -9,7 +9,9 @@ interface WordsPerChunkControlProps {
  * Ermöglicht die Einstellung, wie viele Wörter gleichzeitig im RSVP-Modus angezeigt werden.
  */
 export function WordsPerChunkControl({ compact = false }: WordsPerChunkControlProps) {
-  const { wordsPerChunk, setWordsPerChunk } = useRSVP();
+  const wordsPerChunk = useReaderSelector((s) => s.wordsPerChunk);
+  const dispatch = useReaderDispatch();
+  const setWordsPerChunk = (count: number) => dispatch({ type: 'SET_WORDS_PER_CHUNK', payload: count });
 
   const label = wordsPerChunk === 1 ? 'Wort' : 'Wörter';
 
@@ -27,6 +29,7 @@ export function WordsPerChunkControl({ compact = false }: WordsPerChunkControlPr
           step={1}
           value={wordsPerChunk}
           onChange={(e) => setWordsPerChunk(Number(e.target.value))}
+          aria-label="Wörter pro Anzeige"
           className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer
                      accent-blue-500 dark:accent-blue-400"
         />
@@ -47,6 +50,7 @@ export function WordsPerChunkControl({ compact = false }: WordsPerChunkControlPr
         step={1}
         value={wordsPerChunk}
         onChange={(e) => setWordsPerChunk(Number(e.target.value))}
+        aria-label="Wörter pro Anzeige"
         className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer
                    accent-blue-500 dark:accent-blue-400"
       />

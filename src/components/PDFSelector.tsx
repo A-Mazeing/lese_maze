@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { usePDFParser } from '@/hooks/usePDFParser';
-import { DocumentSelector, PDF_CONFIG } from './shared/DocumentSelector';
+import { DocumentSelector } from './shared/DocumentSelector';
+import { PDF_CONFIG } from './shared/documentConfigs';
 
 /**
  * PDF File Selector mit Drag & Drop.

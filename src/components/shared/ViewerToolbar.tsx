@@ -1,4 +1,4 @@
-import { ReactNode, useCallback } from 'react';
+import { useCallback, type ReactNode } from 'react';
 
 interface NavigationButtonsProps {
   /** Go to previous item */
@@ -269,6 +269,27 @@ export function ReadingRangeInfo({
         Zurücksetzen
       </button>
     </div>
+  );
+}
+
+interface ReadingRangeEstimateProps {
+  /** Start word index (0-based) */
+  startIndex: number;
+  /** Last word index (inclusive) of the effective range */
+  lastIndex: number;
+  /** Whether a custom range is set (otherwise nothing is shown) */
+  active: boolean;
+  wpm: number;
+}
+
+/** One-line summary of a custom reading range (word count and estimated duration). */
+export function ReadingRangeEstimate({ startIndex, lastIndex, active, wpm }: ReadingRangeEstimateProps) {
+  if (!active) return null;
+  const words = Math.max(0, lastIndex - startIndex + 1);
+  return (
+    <p className="flex-shrink-0 px-3 py-1 text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20">
+      {words.toLocaleString('de-DE')} Wörter, ca. {Math.max(1, Math.ceil(words / Math.max(1, wpm)))} Min. bei {wpm} WPM
+    </p>
   );
 }
 

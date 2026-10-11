@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import React, { ReactNode } from 'react';
+import { createElement, type ReactNode } from 'react';
 import { useViewerSelection, adjustMenuPosition } from '@/hooks/useViewerSelection';
 import { ReaderProvider } from '@/contexts/ReaderContext';
 
 // Wrapper component with ReaderProvider
 function createWrapper() {
   return function Wrapper({ children }: { children: ReactNode }) {
-    return React.createElement(ReaderProvider, null, children);
+    return createElement(ReaderProvider, null, children);
   };
 }
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { DocumentSelector, PDF_CONFIG, EPUB_CONFIG } from '@/components/shared/DocumentSelector';
+import { DocumentSelector } from '@/components/shared/DocumentSelector';
+import { PDF_CONFIG, EPUB_CONFIG } from '@/components/shared/documentConfigs';
 
 describe('DocumentSelector', () => {
   const mockOnLoadFile = vi.fn();
@@ -172,8 +173,8 @@ describe('DocumentSelector', () => {
       expect(mockOnLoadFile).toHaveBeenCalledWith(epubFile);
     });
 
-    it('should show alert for invalid file type', () => {
-      const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    it('should show an inline error for an invalid file type', () => {
+      const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
 
       render(
         <DocumentSelector
@@ -191,10 +192,11 @@ describe('DocumentSelector', () => {
         dataTransfer: { files: [wrongFile] }
       });
 
-      expect(alertMock).toHaveBeenCalledWith('Bitte wähle eine PDF-Datei aus.');
+      expect(screen.getByRole('alert')).toHaveTextContent('Bitte wähle eine PDF-Datei aus.');
+      expect(alertSpy).not.toHaveBeenCalled(); // kein blockierendes window.alert
       expect(mockOnLoadFile).not.toHaveBeenCalled();
-      
-      alertMock.mockRestore();
+
+      alertSpy.mockRestore();
     });
   });
 

@@ -1,11 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { renderHook, act } from '@testing-library/react';
-import {
-  ViewerContextMenu,
-  useContextMenu,
-  type WordRange,
-} from '@/components/shared/ViewerContextMenu';
+import { ViewerContextMenu, type WordRange } from '@/components/shared/ViewerContextMenu';
+import { useContextMenu } from '@/hooks/useContextMenu';
 
 describe('ViewerContextMenu', () => {
   const defaultProps = {

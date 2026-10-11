@@ -3,17 +3,18 @@ logs
 *.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
 # Dependencies
 node_modules
 
-# Build outputs
-# dist  # Auskommentiert, damit die gebaute Extension direkt heruntergeladen werden kann
+# Build-Ausgaben (werden per CI als Release-Artefakt bereitgestellt)
+dist
 dist-ssr
 *.local
+
+# Von scripts/copy-pdfjs-assets.mjs erzeugt
+public/pdfjs/
 
 # Test coverage
 coverage
@@ -25,27 +26,24 @@ coverage
 .env.local
 .env.*.local
 
-# Editor directories and files
+# Editor / OS
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
-# OS files
-Thumbs.db
-.DS_Store
-
-# Browser extension files
+# Browser-Extension-Pakete
 *.crx
 *.pem
 *.zip
 
-# Temporary files
+# Temporäre Dateien
 *.tmp
 *.temp
 .cache

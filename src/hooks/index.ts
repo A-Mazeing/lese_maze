@@ -1,28 +1,11 @@
 export { useRSVP } from './useRSVP';
-export { useKeyboardShortcuts } from './useKeyboardShortcuts';
-export { 
-  useContextShortcuts,
-  useViewerShortcuts,
-  getShortcutHelp,
-  type ShortcutContext,
-  type ShortcutDefinition,
-  type RSVPShortcutHandlers,
-  type ViewerShortcutHandlers,
-  type AllShortcutHandlers,
-} from './useContextShortcuts';
+export { useKeyboardShortcuts, getShortcutScope, type ShortcutScope } from './useKeyboardShortcuts';
 export { usePDFParser } from './usePDFParser';
-export { usePDFViewer } from './usePDFViewer'; // Legacy Canvas-based viewer hook
-export { usePDFTextRenderer } from './usePDFTextRenderer'; // New text-based viewer hook
 export { useEPubParser } from './useEPubParser';
+export { useEPubViewer } from './useEPubViewer';
 export { usePageContent } from './usePageContent';
 export { useProgress } from './useProgress';
-export {
-  useDOMWordSelection,
-  useContentWordSelection,
-  useElementWordSelection,
-  createWordElements,
-  type SelectionState,
-} from './selection';
+export { useContextMenu } from './useContextMenu';
 export {
   useViewerSelection,
   adjustMenuPosition,

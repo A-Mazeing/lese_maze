@@ -1,24 +1,14 @@
-import { useState, useCallback } from 'react';
-import { useReader } from '@/contexts/ReaderContext';
-import { tokenizeTextWithStructure, cleanText } from '@/utils/textProcessor';
-import * as pdfjsLib from 'pdfjs-dist';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useReaderDispatch, useReaderDocuments } from '@/contexts/ReaderContext';
+import { openPdf, PdfLoadError, type PdfDocumentHandle } from '@/utils/pdfjs';
+import { buildPageText, type PdfTextItemLike } from '@/utils/pdfText';
+import { cleanText, tokenizeText, tokenizeTextWithStructure } from '@/utils/textProcessor';
+import { fingerprintWords, generateDocumentId } from '@/utils/storage';
 
-// Worker konfigurieren - Chrome Extension kompatibel
-// Vite's ?url Import-Suffix gibt die korrekte URL für den Worker zurück
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+/** Größenlimit, ab dem ein PDF abgelehnt wird (schützt vor Speicherüberlauf der Extension). */
+export const MAX_PDF_BYTES = 200 * 1024 * 1024;
 
-// Unterdrücke bekannte harmlose PDF.js Warnungen (TrueType Font Warnungen)
-const originalConsoleWarn = console.warn;
-console.warn = (...args: unknown[]) => {
-  const message = args[0];
-  if (typeof message === 'string' && message.includes('TT: undefined function')) {
-    return; // Ignoriere TrueType Font Warnungen
-  }
-  originalConsoleWarn.apply(console, args);
-};
-
-interface PDFParserState {
+export interface PDFParserState {
   isLoading: boolean;
   error: string | null;
   fileName: string | null;
@@ -26,117 +16,183 @@ interface PDFParserState {
   currentPage: number;
 }
 
+export type ParseResult = { success: true; wordCount: number } | { success: false; error: string };
+
+const initialState: PDFParserState = {
+  isLoading: false,
+  error: null,
+  fileName: null,
+  pageCount: 0,
+  currentPage: 0,
+};
+
+/** Satzende am Seitenende → neuer Absatz; sonst läuft der Satz auf der nächsten Seite weiter. */
+const ENDS_SENTENCE_RE = /[.!?…]["'“”„‘’»«)\]]*\s*$/u;
+
+export interface ExtractedPdf {
+  words: string[];
+  sentenceBreaks: number[];
+  paragraphBreaks: number[];
+  /** Wort-Index, an dem jede Seite beginnt (pageBreaks[0] === 0, nicht fallend). */
+  pageBreaks: number[];
+  fullText: string;
+}
+
 /**
- * Hook für PDF-Parsing mit PDF.js.
- * Extrahiert Text und Seitenumbruch-Indices für die Preview.
- * Behält PDF-Dokument-Referenz für den PDF-Viewer.
+ * Baut aus den Texten der einzelnen Seiten die Wortliste samt Satz-, Absatz- und
+ * Seitengrenzen. Seitentexte werden nur bei Satzende mit einem Absatzumbruch verbunden:
+ * Ein Satz, der über den Seitenumbruch läuft, bleibt ein Satz (wichtig für „Bei Pause
+ * zum Satzanfang“). Die Seitenstarts ergeben sich aus den Wortzahlen je Seite.
+ */
+export function assemblePdfText(pageTexts: readonly string[]): ExtractedPdf {
+  const pageBreaks: number[] = [];
+  let wordCount = 0;
+  let fullText = '';
+
+  for (const pageText of pageTexts) {
+    pageBreaks.push(wordCount);
+    if (!pageText) continue;
+    if (fullText) fullText += ENDS_SENTENCE_RE.test(fullText) ? '\n\n' : ' ';
+    fullText += pageText;
+    wordCount += tokenizeText(pageText).length;
+  }
+
+  const { words, sentenceBreaks, paragraphBreaks } = tokenizeTextWithStructure(fullText);
+  return { words, sentenceBreaks, paragraphBreaks, pageBreaks, fullText };
+}
+
+/**
+ * Hook zum Einlesen von PDF-Dateien.
+ *
+ * Das Dokument wird einmal geöffnet: Aus ihm wird der Text für den RSVP-Reader
+ * extrahiert, danach übernimmt der `ReaderContext` das geöffnete PDF für die
+ * Seitenansicht und beendet es (pdf.js-Worker, Speicher), sobald ein anderes Dokument
+ * geladen wird oder der Reader schließt. Schlägt das Laden fehl, wird es sofort beendet.
  */
 export function usePDFParser() {
-  const { dispatch, pdfDocumentRef } = useReader();
-  const [state, setState] = useState<PDFParserState>({
-    isLoading: false,
-    error: null,
-    fileName: null,
-    pageCount: 0,
-    currentPage: 0,
-  });
+  const dispatch = useReaderDispatch();
+  const { setPdf } = useReaderDocuments();
+  const [state, setState] = useState<PDFParserState>(initialState);
+  const controllerRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
 
-  const loadPDF = useCallback(async (file: File) => {
-    setState(prev => ({ ...prev, isLoading: true, error: null, fileName: file.name }));
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      controllerRef.current?.abort();
+    };
+  }, []);
 
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      
-      setState(prev => ({ ...prev, pageCount: pdf.numPages }));
+  const update = useCallback((patch: Partial<PDFParserState>) => {
+    if (mountedRef.current) setState((prev) => ({ ...prev, ...patch }));
+  }, []);
 
-      // Extrahiere Text von allen Seiten und tracke Seitenumbrüche
-      const textParts: string[] = [];
-      const pageBreaks: number[] = [0]; // Index 0 = Seite 1
-      let totalWordCount = 0;
-      
-      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-        setState(prev => ({ ...prev, currentPage: pageNum }));
-        
-        const page = await pdf.getPage(pageNum);
-        const textContent = await page.getTextContent();
-        
-        const pageText = textContent.items
-          .map((item) => {
-            if ('str' in item) {
-              return item.str;
-            }
-            return '';
-          })
-          .join(' ');
-        
-        const cleanedPageText = cleanText(pageText);
-        const { words: pageWords } = tokenizeTextWithStructure(cleanedPageText);
-        
-        textParts.push(cleanedPageText);
-        totalWordCount += pageWords.length;
-        
-        // Speichere Startindex der nächsten Seite (außer bei letzter Seite)
-        if (pageNum < pdf.numPages) {
-          pageBreaks.push(totalWordCount);
-        }
+  const cancel = useCallback(() => {
+    if (!controllerRef.current) return;
+    controllerRef.current.abort();
+    controllerRef.current = null;
+    update({ isLoading: false });
+  }, [update]);
+
+  const loadPDF = useCallback(
+    async (file: File): Promise<ParseResult> => {
+      // Ein neues Laden ersetzt ein noch laufendes.
+      controllerRef.current?.abort();
+      const controller = new AbortController();
+      controllerRef.current = controller;
+      const { signal } = controller;
+      // Nur das jeweils neueste Laden darf den Hook-Zustand ändern.
+      const isCurrent = () => controllerRef.current === controller;
+      const updateIfCurrent = (patch: Partial<PDFParserState>) => {
+        if (isCurrent()) update(patch);
+      };
+
+      if (file.size > MAX_PDF_BYTES) {
+        const error = `Die Datei ist zu groß (maximal ${Math.round(MAX_PDF_BYTES / 1024 / 1024)} MB).`;
+        update({ isLoading: false, error, fileName: file.name });
+        return { success: false, error };
       }
 
-      const fullText = textParts.join(' ');
-      const { words, sentenceBreaks, paragraphBreaks } = tokenizeTextWithStructure(fullText);
+      setState({ ...initialState, isLoading: true, fileName: file.name });
+      let pdf: Awaited<ReturnType<typeof openPdf>> | null = null;
+      let accepted = false;
 
-      if (words.length === 0) {
-        throw new Error('Keine lesbaren Wörter im PDF gefunden.');
-      }
+      try {
+        const buffer = await file.arrayBuffer();
+        if (signal.aborted) throw new PdfLoadError('Das Laden wurde abgebrochen.', 'aborted');
 
-      // Speichere PDF-Dokument-Referenz für den Viewer
-      pdfDocumentRef.current = pdf;
+        pdf = await openPdf(buffer, { signal });
+        updateIfCurrent({ pageCount: pdf.numPages });
 
-      // Nutze SET_CONTENT für erweiterte Metadaten
-      dispatch({ 
-        type: 'SET_CONTENT', 
-        payload: {
-          words,
-          originalContent: fullText,
-          title: file.name.replace(/\.pdf$/i, ''),
-          sourceType: 'pdf',
-          pageBreaks,
-          totalPages: pdf.numPages,
-          sentenceBreaks,
-          paragraphBreaks,
+        const pageTexts: string[] = [];
+        const pageSizes: PdfDocumentHandle['pageSizes'][number][] = [];
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+          if (signal.aborted) throw new PdfLoadError('Das Laden wurde abgebrochen.', 'aborted');
+          updateIfCurrent({ currentPage: pageNumber });
+
+          const page = await pdf.getPage(pageNumber);
+          try {
+            const viewport = page.getViewport({ scale: 1 });
+            pageSizes.push({ width: viewport.width, height: viewport.height });
+            const content = await page.getTextContent();
+            pageTexts.push(cleanText(buildPageText(content.items as PdfTextItemLike[])));
+          } finally {
+            page.cleanup();
+          }
         }
-      });
-      
-      setState(prev => ({ ...prev, isLoading: false }));
 
-      return { success: true, wordCount: words.length };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Fehler beim Laden des PDFs';
-      setState(prev => ({ ...prev, isLoading: false, error: errorMessage }));
-      return { success: false, error: errorMessage };
-    }
-  }, [dispatch]);
+        const extracted = assemblePdfText(pageTexts);
+        if (extracted.words.length === 0) {
+          throw new Error(
+            'Im PDF wurde kein lesbarer Text gefunden. Gescannte Dokumente (nur Bilder) benötigen vorher eine Texterkennung (OCR).',
+          );
+        }
+
+        if (signal.aborted) throw new PdfLoadError('Das Laden wurde abgebrochen.', 'aborted');
+
+        // Das geöffnete PDF übernimmt der Kontext (Seitenansicht); das vorherige wird beendet.
+        setPdf({ document: pdf, pageSizes });
+        accepted = true;
+
+        const title = file.name.replace(/\.pdf$/i, '') || 'PDF';
+        dispatch({
+          type: 'SET_CONTENT',
+          payload: {
+            words: extracted.words,
+            originalContent: extracted.fullText,
+            title,
+            sourceType: 'pdf',
+            pageBreaks: extracted.pageBreaks,
+            totalPages: pdf.numPages,
+            sentenceBreaks: extracted.sentenceBreaks,
+            paragraphBreaks: extracted.paragraphBreaks,
+            documentId: generateDocumentId(title, 'pdf', fingerprintWords(extracted.words)),
+          },
+        });
+
+        updateIfCurrent({ isLoading: false });
+        return { success: true, wordCount: extracted.words.length };
+      } catch (error) {
+        if (error instanceof PdfLoadError && error.code === 'aborted') {
+          return { success: false, error: error.message };
+        }
+        const message = error instanceof Error ? error.message : 'Fehler beim Laden des PDFs.';
+        updateIfCurrent({ isLoading: false, error: message });
+        return { success: false, error: message };
+      } finally {
+        if (controllerRef.current === controller) controllerRef.current = null;
+        if (pdf && !accepted) await pdf.destroy().catch(() => undefined); // beendet den Worker
+      }
+    },
+    [dispatch, setPdf, update],
+  );
 
   const reset = useCallback(() => {
-    // Bereinige PDF-Dokument
-    if (pdfDocumentRef.current) {
-      pdfDocumentRef.current.destroy();
-      pdfDocumentRef.current = null;
-    }
-    
-    setState({
-      isLoading: false,
-      error: null,
-      fileName: null,
-      pageCount: 0,
-      currentPage: 0,
-    });
-    dispatch({ type: 'RESET' });
-  }, [dispatch, pdfDocumentRef]);
+    cancel();
+    setState(initialState);
+    dispatch({ type: 'CLEAR_CONTENT' });
+  }, [cancel, dispatch]);
 
-  return {
-    ...state,
-    loadPDF,
-    reset,
-  };
+  return { ...state, loadPDF, cancel, reset };
 }

@@ -1,10 +1,16 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Popup } from './Popup';
 import '../styles/index.css';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <Popup />
-  </React.StrictMode>
+const root = document.getElementById('root');
+if (!root) throw new Error('Wurzelelement #root fehlt.');
+
+createRoot(root).render(
+  <StrictMode>
+    <ErrorBoundary>
+      <Popup />
+    </ErrorBoundary>
+  </StrictMode>,
 );

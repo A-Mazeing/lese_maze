@@ -3,8 +3,8 @@
  * Consolidates text selection, context menu, and reading range logic.
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { useReader } from '@/contexts/ReaderContext';
+import { useState, useCallback, useRef } from 'react';
+import { useReaderDispatch } from '@/contexts/ReaderContext';
 import type { WordRange, ContextMenuAction } from '@/components/shared/ViewerContextMenu';
 
 export interface ViewerSelectionState {
@@ -26,7 +26,7 @@ export interface UseViewerSelectionOptions {
  * Provides consistent behavior across PDF and ePub viewers.
  */
 export function useViewerSelection(options: UseViewerSelectionOptions = {}) {
-  const { dispatch } = useReader();
+  const dispatch = useReaderDispatch();
   const { onStartReading } = options;
 
   const [state, setState] = useState<ViewerSelectionState>({
@@ -94,7 +94,7 @@ export function useViewerSelection(options: UseViewerSelectionOptions = {}) {
     }
 
     hideMenu();
-    window.getSelection()?.removeAllRanges();
+    if (typeof window !== 'undefined') window.getSelection()?.removeAllRanges();
   }, [state.selectedWordRange, dispatch, onStartReading, hideMenu]);
 
   /**
@@ -125,15 +125,6 @@ export function useViewerSelection(options: UseViewerSelectionOptions = {}) {
   const handleMouseUp = useCallback(() => {
     isMouseDownRef.current = false;
   }, []);
-
-  // Close menu on click outside
-  useEffect(() => {
-    if (!state.showContextMenu) return;
-
-    const handleClickAway = () => hideMenu();
-    document.addEventListener('click', handleClickAway);
-    return () => document.removeEventListener('click', handleClickAway);
-  }, [state.showContextMenu, hideMenu]);
 
   return {
     // State

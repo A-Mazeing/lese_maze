@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, ReactNode } from 'react';
+import { useCallback, useRef, useState, type DragEvent, type KeyboardEvent, type ReactNode } from 'react';
 
 /**
  * Configuration for a document type.
@@ -50,7 +50,7 @@ interface DocumentSelectorProps {
   /** Metadata to display when loaded */
   metadata?: DocumentMetadataDisplay;
   /** Called when file should be loaded */
-  onLoadFile: (file: File) => void;
+  onLoadFile: (file: File) => unknown;
   /** Called when file should be reset/removed */
   onReset: () => void;
 }
@@ -104,22 +104,26 @@ export function DocumentSelector({
   onReset,
 }: DocumentSelectorProps) {
   const [isDragOver, setIsDragOver] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const colors = colorClasses[config.color];
 
   const validateFile = useCallback((file: File): boolean => {
-    return file.type === config.mimeType || file.name.endsWith(config.extension);
+    // Der MIME-Typ ist je nach System leer oder abweichend; die Endung ist maßgeblich (ohne Groß-/Kleinschreibung).
+    return file.type === config.mimeType || file.name.toLowerCase().endsWith(config.extension);
   }, [config.mimeType, config.extension]);
 
   const handleFile = useCallback((file: File) => {
     if (validateFile(file)) {
+      setValidationError(null);
       onLoadFile(file);
     } else {
-      alert(`Bitte wähle eine ${config.label} aus.`);
+      // Inline statt window.alert(): blockiert nicht und ist für Screenreader sichtbar (role="alert").
+      setValidationError(`Bitte wähle eine ${config.label} aus.`);
     }
   }, [validateFile, onLoadFile, config.label]);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleDrop = useCallback((e: DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
     
@@ -129,12 +133,14 @@ export function DocumentSelector({
     }
   }, [handleFile]);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
+  const handleDragOver = useCallback((e: DragEvent) => {
     e.preventDefault();
     setIsDragOver(true);
   }, []);
 
-  const handleDragLeave = useCallback(() => {
+  const handleDragLeave = useCallback((e: DragEvent) => {
+    // Beim Überfahren von Kindelementen feuert dragleave – nur echtes Verlassen zählt.
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
     setIsDragOver(false);
   }, []);
 
@@ -143,10 +149,19 @@ export function DocumentSelector({
     if (file) {
       handleFile(file);
     }
+    // Erlaubt, dieselbe Datei nach "Entfernen" erneut zu wählen.
+    e.target.value = '';
   }, [handleFile]);
 
   const handleClick = useCallback(() => {
     fileInputRef.current?.click();
+  }, []);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInputRef.current?.click();
+    }
   }, []);
 
   // Loading state
@@ -155,7 +170,7 @@ export function DocumentSelector({
       <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-300 
                       dark:border-gray-600 rounded-lg">
         <div className={`animate-spin rounded-full h-12 w-12 border-4 ${colors.spinner} border-t-transparent mb-4`} />
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-gray-600 dark:text-gray-400" role="status">
           {state.loadingProgress || `Lade ${config.label}...`}
         </p>
       </div>
@@ -186,7 +201,7 @@ export function DocumentSelector({
           </button>
         </div>
         {state.error && (
-          <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <div role="alert" className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
             <p className="text-red-600 dark:text-red-400 text-sm">{state.error}</p>
           </div>
         )}
@@ -197,7 +212,11 @@ export function DocumentSelector({
   // Default drop zone state
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={`${config.label} auswählen`}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -207,7 +226,7 @@ export function DocumentSelector({
                     ? `${colors.border} ${colors.bg}` 
                     : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                   }
-                  ${state.error ? 'border-red-300 dark:border-red-600' : ''}`}
+                  ${state.error || validationError ? 'border-red-300 dark:border-red-600' : ''}`}
     >
       <input
         ref={fileInputRef}
@@ -225,50 +244,11 @@ export function DocumentSelector({
         {config.label} hierher ziehen oder klicken zum Auswählen
       </p>
       
-      {state.error && (
-        <p className="text-red-500 dark:text-red-400 text-sm mt-2">{state.error}</p>
+      {(validationError || state.error) && (
+        <p role="alert" className="text-red-500 dark:text-red-400 text-sm mt-2 text-center">
+          {validationError || state.error}
+        </p>
       )}
     </div>
   );
 }
-
-// Pre-configured document type configs for PDF and ePub
-export const PDF_CONFIG: DocumentTypeConfig = {
-  type: 'pdf',
-  accept: '.pdf,application/pdf',
-  mimeType: 'application/pdf',
-  extension: '.pdf',
-  color: 'green',
-  label: 'PDF-Datei',
-  icon: (
-    <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-    </svg>
-  ),
-  successIcon: (
-    <svg className="w-full h-full" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z" />
-    </svg>
-  ),
-};
-
-export const EPUB_CONFIG: DocumentTypeConfig = {
-  type: 'epub',
-  accept: '.epub,application/epub+zip',
-  mimeType: 'application/epub+zip',
-  extension: '.epub',
-  color: 'purple',
-  label: 'ePub-Datei',
-  icon: (
-    <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-    </svg>
-  ),
-  successIcon: (
-    <svg className="w-full h-full" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M18 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zM6 4h5v8l-2.5-1.5L6 12V4z" />
-    </svg>
-  ),
-};

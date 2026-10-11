@@ -1,535 +1,221 @@
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useReader } from '@/contexts/ReaderContext';
-import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { usePageContent } from '@/hooks/usePageContent';
-import { RSVPDisplay } from '@/components/RSVPDisplay';
-import { SpeedControl } from '@/components/SpeedControl';
-import { WordsPerChunkControl } from '@/components/WordsPerChunkControl';
-import { PlaybackSettings } from '@/components/PlaybackSettings';
-import { ProgressBar } from '@/components/ProgressBar';
-import { PlaybackControls } from '@/components/PlaybackControls';
-import { PDFSelector } from '@/components/PDFSelector';
-import { PDFTextViewer } from '@/components/PDFTextViewer';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EPubSelector } from '@/components/EPubSelector';
 import { EPubViewer } from '@/components/EPubViewer';
+import { PDFSelector } from '@/components/PDFSelector';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { ContentPreview } from '@/components/ContentPreview';
+import { PDFViewer } from '@/components/PDFViewer';
+import { ContentPreview } from '@/components/viewer';
+import { ErrorDisplay, LoadingState } from '@/components/shared';
+import {
+  useReaderDispatch,
+  useReaderDocuments,
+  useReaderSelector,
+} from '@/contexts/ReaderContext';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { usePageContent } from '@/hooks/usePageContent';
+import { useProgress } from '@/hooks/useProgress';
+import { formatProgress } from '@/utils/textProcessor';
+import { parseReaderParams, type ReaderMode } from './readerParams';
+import { RsvpPanel } from './RsvpPanel';
+import { ShortcutHelp } from './ShortcutHelp';
+import { SourcePicker } from './SourcePicker';
+import { useResumeHint } from './useResumeHint';
 
-type ReaderMode = 'pdf' | 'epub' | 'page' | 'select';
-type ViewMode = 'rsvp' | 'split' | 'pdfSplit' | 'epubSplit';
+const MODE_TITLES: Record<ReaderMode, string> = {
+  select: 'RSVP Speed Reader',
+  pdf: 'PDF Reader',
+  epub: 'ePub Reader',
+  page: 'Webseite lesen',
+};
 
 export function Reader() {
-  const { resolvedTheme } = useTheme();
-  const { state, dispatch } = useReader();
-  const { loadCurrentPage, title: pageTitle, isLoading: pageLoading, error: pageError } = usePageContent();
-  const [mode, setMode] = useState<ReaderMode>('select');
-  const [viewMode, setViewMode] = useState<ViewMode>('split');
-  
-  // State für RSVP Panel Positionierung
-  // null = keine Markierung, Panel startet oben
-  const [highlightViewportY, setHighlightViewportY] = useState<number | null>(null);
-  const rsvpContainerRef = useRef<HTMLDivElement>(null);
+  const dispatch = useReaderDispatch();
+  const { releaseDocuments } = useReaderDocuments();
+  const params = useMemo(() => parseReaderParams(window.location.search), []);
+  const [mode, setMode] = useState<ReaderMode>(params.mode);
 
-  const hasContent = state.words.length > 0;
+  const hasContent = useReaderSelector((s) => s.words.length > 0);
+  const wordCount = useReaderSelector((s) => s.words.length);
+  const title = useReaderSelector((s) => s.metadata.title);
+  const sourceType = useReaderSelector((s) => s.metadata.sourceType);
+  const documentId = useReaderSelector((s) => s.metadata.documentId);
+  const showText = useReaderSelector((s) => s.previewMode);
 
-  // Aktiviere Keyboard Shortcuts
+  const page = usePageContent();
+  const resumeHint = useResumeHint(params.resumeId);
   useKeyboardShortcuts({ enabled: hasContent });
+  const { restored } = useProgress({ enabled: hasContent });
+  const [dismissedHint, setDismissedHint] = useState<unknown>(null);
+  const restoredDismissed = restored !== null && dismissedHint === restored;
 
-  // Parse URL-Parameter für Modus
+  // Seiteninhalt genau einmal laden (auch unter React.StrictMode, das Effekte doppelt ausführt).
+  const pageLoadStarted = useRef(false);
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const urlMode = params.get('mode') as ReaderMode | null;
-    const urlView = params.get('view') as ViewMode | null;
-    
-    if (urlMode && ['pdf', 'epub', 'page'].includes(urlMode)) {
-      setMode(urlMode);
-      
-      // Wenn page-Modus, lade automatisch den Inhalt
-      if (urlMode === 'page') {
-        loadCurrentPage();
-      }
-    }
+    if (params.mode !== 'page' || pageLoadStarted.current) return;
+    pageLoadStarted.current = true;
+    void page.loadPageContent(params.key);
+  }, [params.mode, params.key, page]);
 
-    // Setze View-Mode aus URL-Parameter wenn vorhanden
-    if (urlView && ['rsvp', 'split', 'pdfSplit', 'epubSplit'].includes(urlView)) {
-      setViewMode(urlView);
-    }
-  }, [loadCurrentPage]);
-
-  // Synchronisiere viewMode mit previewMode aus dem State
-  // Nur für die generische 'split' View - pdfSplit und epubSplit behalten ihren Zustand
   useEffect(() => {
-    if (state.previewMode && viewMode === 'rsvp') {
-      // Wenn previewMode aktiviert wird und wir in rsvp sind, wechsle zu split
-      setViewMode('split');
-    } else if (!state.previewMode && viewMode === 'split') {
-      // Nur 'split' zu 'rsvp' wechseln, NICHT pdfSplit/epubSplit
-      // Diese sollen während der Wiedergabe bestehen bleiben
-      setViewMode('rsvp');
-    }
-    // pdfSplit und epubSplit werden nicht automatisch gewechselt
-  }, [state.previewMode, viewMode]);
+    document.title = title ? `${title} – RSVP Speed Reader` : MODE_TITLES[mode];
+  }, [title, mode]);
 
-  // Wechsle zur PDF+RSVP Split-Ansicht wenn PDF geladen wird
-  useEffect(() => {
-    if (mode === 'pdf' && hasContent && viewMode !== 'pdfSplit' && viewMode !== 'rsvp') {
-      setViewMode('pdfSplit');
-    }
-  }, [mode, hasContent, viewMode]);
+  const backToSelection = useCallback(() => {
+    dispatch({ type: 'CLEAR_CONTENT' });
+    releaseDocuments();
+    setMode('select');
+    // Der Seiteninhalt-Schlüssel soll bei einem Neuladen nicht erneut geladen werden.
+    window.history.replaceState(null, '', window.location.pathname);
+  }, [dispatch, releaseDocuments]);
 
-  // Wechsle zur ePub+RSVP Split-Ansicht wenn ePub geladen wird
-  useEffect(() => {
-    if (mode === 'epub' && hasContent && viewMode !== 'epubSplit' && viewMode !== 'rsvp') {
-      setViewMode('epubSplit');
-    }
-  }, [mode, hasContent, viewMode]);
+  const setShowText = useCallback(
+    (value: boolean) => dispatch({ type: 'SET_PREVIEW_MODE', payload: value }),
+    [dispatch],
+  );
 
-  const getTitle = () => {
-    if (state.metadata.title) {
-      return state.metadata.title;
-    }
-    switch (mode) {
-      case 'pdf':
-        return 'PDF Reader';
-      case 'epub':
-        return 'ePub Reader';
-      case 'page':
-        return pageTitle || 'Webseite lesen';
-      default:
-        return 'RSVP Speed Reader';
-    }
-  };
-
-  const handleViewModeChange = (newMode: ViewMode) => {
-    setViewMode(newMode);
-    const isPreviewMode = newMode === 'split' || newMode === 'pdfSplit' || newMode === 'epubSplit';
-    dispatch({ type: 'SET_PREVIEW_MODE', payload: isPreviewMode });
-  };
-
-  // Handler for starting RSVP reading from PDF selection
-  const handleStartReadingFromPDF = useCallback((range?: { start: number; end: number }) => {
-    if (range) {
-      // Range is already set by PDFViewer, just set the reading range
-      dispatch({ type: 'SET_READING_RANGE', payload: { startIndex: range.start, endIndex: range.end } });
-      dispatch({ type: 'SET_INDEX', payload: range.start });
-    }
-    // Starte Playback OHNE View-Wechsel - bleibt in Split-View
-    dispatch({ type: 'PLAY' });
-  }, [dispatch]);
-
-  // Handler für die Y-Position des markierten Wortes im PDF
-  const handleHighlightPositionChange = useCallback((viewportY: number | null) => {
-    setHighlightViewportY(viewportY);
-  }, []);
-
-  // Berechne die Style für das RSVP Panel basierend auf der Highlight-Position
-  const rsvpPanelStyle = useMemo(() => {
-    const container = rsvpContainerRef.current;
-    
-    // Default: Panel startet oben
-    if (highlightViewportY === null || !container) {
-      return { top: '16px' };
-    }
-    
-    const containerRect = container.getBoundingClientRect();
-    const panelHeight = 400; // Geschätzte Höhe von RSVP + Controls
-    const padding = 16;
-    
-    // Berechne Position relativ zum Container
-    let targetTop = highlightViewportY - containerRect.top;
-    targetTop -= 80; // Zentriere Panel etwas über dem markierten Wort
-    
-    // Bleibe innerhalb der Grenzen
-    const minTop = padding;
-    const maxTop = containerRect.height - panelHeight - padding;
-    targetTop = Math.max(minTop, Math.min(maxTop, targetTop));
-    
-    return { top: `${targetTop}px` };
-  }, [highlightViewportY]);
-
-  // Handler for starting RSVP reading from ePub selection
-  const handleStartReadingFromEPub = useCallback((range?: { start: number; end: number }) => {
-    if (range) {
-      dispatch({ type: 'SET_READING_RANGE', payload: { startIndex: range.start, endIndex: range.end } });
-      dispatch({ type: 'SET_INDEX', payload: range.start });
-    }
-    // Starte Playback OHNE View-Wechsel - bleibt in Split-View
-    dispatch({ type: 'PLAY' });
-  }, [dispatch]);
+  const viewer =
+    sourceType === 'pdf' ? <PDFViewer key={documentId} className="h-full" /> :
+    sourceType === 'epub' ? <EPubViewer className="h-full" /> :
+    <ContentPreview className="h-full" />;
 
   return (
-    <div className={`min-h-screen ${resolvedTheme === 'dark' ? 'dark' : ''}`}>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors flex flex-col">
-        {/* Header */}
-        <header className="flex-shrink-0 bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              {mode !== 'select' && (
-                <button
-                  onClick={() => {
-                    setMode('select');
-                    dispatch({ type: 'CLEAR_CONTENT' });
-                  }}
-                  className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                  aria-label="Zurück zur Auswahl"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-              )}
-              <h1 className="text-xl font-bold truncate max-w-md">{getTitle()}</h1>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              {/* View Mode Toggle - nur wenn Inhalt vorhanden */}
-              {hasContent && (
-                <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                  {/* PDF-Ansicht: RSVP und PDF+RSVP */}
-                  {mode === 'pdf' ? (
-                    <>
-                      <button
-                        onClick={() => handleViewModeChange('rsvp')}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors
-                          ${viewMode === 'rsvp' 
-                            ? 'bg-white dark:bg-gray-600 shadow-sm' 
-                            : 'hover:bg-gray-200 dark:hover:bg-gray-600'
-                          }`}
-                      >
-                        RSVP
-                      </button>
-                      <button
-                        onClick={() => handleViewModeChange('pdfSplit')}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors
-                          ${viewMode === 'pdfSplit' 
-                            ? 'bg-white dark:bg-gray-600 shadow-sm' 
-                            : 'hover:bg-gray-200 dark:hover:bg-gray-600'
-                          }`}
-                      >
-                        PDF+RSVP
-                      </button>
-                    </>
-                  ) : mode === 'epub' ? (
-                    /* ePub-Ansicht: RSVP und ePub+RSVP */
-                    <>
-                      <button
-                        onClick={() => handleViewModeChange('rsvp')}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors
-                          ${viewMode === 'rsvp' 
-                            ? 'bg-white dark:bg-gray-600 shadow-sm' 
-                            : 'hover:bg-gray-200 dark:hover:bg-gray-600'
-                          }`}
-                      >
-                        RSVP
-                      </button>
-                      <button
-                        onClick={() => handleViewModeChange('epubSplit')}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors
-                          ${viewMode === 'epubSplit' 
-                            ? 'bg-white dark:bg-gray-600 shadow-sm' 
-                            : 'hover:bg-gray-200 dark:hover:bg-gray-600'
-                          }`}
-                      >
-                        ePub+RSVP
-                      </button>
-                    </>
-                  ) : (
-                    /* Page-Ansicht: RSVP und Split */
-                    <>
-                      <button
-                        onClick={() => handleViewModeChange('rsvp')}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors
-                          ${viewMode === 'rsvp' 
-                            ? 'bg-white dark:bg-gray-600 shadow-sm' 
-                            : 'hover:bg-gray-200 dark:hover:bg-gray-600'
-                          }`}
-                      >
-                        RSVP
-                      </button>
-                      <button
-                        onClick={() => handleViewModeChange('split')}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors
-                          ${viewMode === 'split' 
-                            ? 'bg-white dark:bg-gray-600 shadow-sm' 
-                            : 'hover:bg-gray-200 dark:hover:bg-gray-600'
-                          }`}
-                      >
-                        Split
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
+    <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors">
+      <header className="flex-shrink-0 bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            {mode !== 'select' && (
+              <button
+                type="button"
+                onClick={backToSelection}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                aria-label="Zurück zur Auswahl"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
+            <h1 className="text-xl font-bold truncate">{title || MODE_TITLES[mode]}</h1>
+          </div>
 
-              {hasContent && (
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {state.words.length.toLocaleString()} Wörter
-                </span>
-              )}
-              <ThemeToggle />
+          <div className="flex items-center gap-4">
+            {hasContent && (
+              <div role="group" aria-label="Ansicht" className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                {([
+                  [false, 'RSVP'],
+                  [true, 'Mit Text'],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    aria-pressed={showText === value}
+                    onClick={() => setShowText(value)}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      showText === value ? 'bg-white dark:bg-gray-600 shadow-sm' : 'hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {hasContent && (
+              <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                {wordCount.toLocaleString('de-DE')} Wörter
+              </span>
+            )}
+            <ThemeToggle />
+          </div>
+        </div>
+      </header>
+
+      {restored && !restoredDismissed && hasContent && (
+        <div role="status" className="flex-shrink-0 flex items-center justify-center gap-3 px-4 py-2 text-sm bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 border-b border-blue-200 dark:border-blue-800">
+          <span>
+            Fortschritt wiederhergestellt: Wort {(restored.index + 1).toLocaleString('de-DE')} (
+            {formatProgress(restored.index, wordCount)}).
+          </span>
+          <button
+            type="button"
+            onClick={() => dispatch({ type: 'SET_INDEX', payload: 0 })}
+            className="underline hover:no-underline"
+          >
+            Von vorn beginnen
+          </button>
+          <button type="button" onClick={() => setDismissedHint(restored)} className="ml-2" aria-label="Hinweis schließen">
+            ✕
+          </button>
+        </div>
+      )}
+
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {!hasContent && resumeHint && mode !== 'page' && (
+          <div role="status" className="flex-shrink-0 px-4 py-2 text-sm text-center bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-100 border-b border-amber-200 dark:border-amber-800">
+            Zuletzt gelesen: <strong>{resumeHint.title}</strong> ({formatProgress(resumeHint.currentIndex, resumeHint.totalWords)}).
+            Wähle dieselbe Datei erneut aus – du liest dann an der gespeicherten Stelle weiter.
+          </div>
+        )}
+
+        {mode === 'select' && !hasContent && <SourcePicker onSelect={setMode} />}
+
+        {mode === 'pdf' && !hasContent && (
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="max-w-xl w-full">
+              <PDFSelector />
             </div>
           </div>
-        </header>
+        )}
 
-        {/* Main Content */}
-        <main className="flex-1 flex flex-col overflow-hidden">
-          {/* Mode Selection */}
-          {mode === 'select' && (
-            <div className="flex-1 flex items-center justify-center p-8">
-              <div className="grid md:grid-cols-3 gap-6 max-w-3xl">
-                <button
-                  onClick={() => setMode('pdf')}
-                  className="flex flex-col items-center gap-4 p-8 bg-white dark:bg-gray-800 rounded-xl 
-                             shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-300 
-                             dark:hover:border-blue-600 transition-all hover:shadow-md"
-                >
-                  <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-xl flex items-center justify-center">
-                    <svg className="w-8 h-8 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z" />
-                    </svg>
-                  </div>
-                  <div className="text-center">
-                    <p className="font-semibold text-lg">PDF öffnen</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">PDF-Datei laden</p>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setMode('epub')}
-                  className="flex flex-col items-center gap-4 p-8 bg-white dark:bg-gray-800 rounded-xl 
-                             shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-300 
-                             dark:hover:border-blue-600 transition-all hover:shadow-md"
-                >
-                  <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
-                    <svg className="w-8 h-8 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M18 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zM6 4h5v8l-2.5-1.5L6 12V4z" />
-                    </svg>
-                  </div>
-                  <div className="text-center">
-                    <p className="font-semibold text-lg">ePub öffnen</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">E-Book laden</p>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setMode('page');
-                    loadCurrentPage();
-                  }}
-                  disabled={pageLoading}
-                  className="flex flex-col items-center gap-4 p-8 bg-white dark:bg-gray-800 rounded-xl 
-                             shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-300 
-                             dark:hover:border-blue-600 transition-all hover:shadow-md
-                             disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
-                    <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
-                    </svg>
-                  </div>
-                  <div className="text-center">
-                    <p className="font-semibold text-lg">Webseite lesen</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Aktuelle Seite</p>
-                  </div>
-                </button>
-              </div>
+        {mode === 'epub' && !hasContent && (
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="max-w-xl w-full">
+              <EPubSelector />
             </div>
-          )}
+          </div>
+        )}
 
-          {/* File Selector */}
-          {mode === 'pdf' && !hasContent && (
-            <div className="flex-1 flex items-center justify-center p-8">
-              <div className="max-w-xl w-full">
-                <PDFSelector />
-              </div>
+        {mode === 'page' && !hasContent && page.isLoading && (
+          <div className="flex-1 flex items-center justify-center">
+            <LoadingState message="Lade Seiteninhalt…" size="lg" color="green" />
+          </div>
+        )}
+
+        {mode === 'page' && !hasContent && !page.isLoading && page.error && (
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="max-w-md rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20">
+              <ErrorDisplay
+                message={page.error}
+                action={{ label: 'Zur Auswahl', onClick: backToSelection }}
+              />
             </div>
-          )}
+          </div>
+        )}
 
-          {mode === 'epub' && !hasContent && (
-            <div className="flex-1 flex items-center justify-center p-8">
-              <div className="max-w-xl w-full">
-                <EPubSelector />
-              </div>
+        {hasContent && mode === 'page' && (page.truncated || page.fromSelection) && (
+          <div role="status" className="flex-shrink-0 px-4 py-1.5 text-xs text-center text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            {page.fromSelection ? 'Es wird nur der markierte Text gelesen.' : ''}
+            {page.truncated ? ' Die Seite war sehr lang und wurde gekürzt.' : ''}
+          </div>
+        )}
+
+        {hasContent && !showText && (
+          <div className="flex-1 flex flex-col items-center justify-center p-4 gap-6 overflow-y-auto">
+            <RsvpPanel size="lg" />
+            <ShortcutHelp />
+          </div>
+        )}
+
+        {hasContent && showText && (
+          <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
+            <div className="md:w-1/2 h-1/2 md:h-auto min-h-0 border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-700 overflow-hidden">
+              {viewer}
             </div>
-          )}
-
-          {/* Loading State for Page Mode */}
-          {mode === 'page' && pageLoading && (
-            <div className="flex-1 flex flex-col items-center justify-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4" />
-              <p className="text-gray-600 dark:text-gray-400">Lade Seiteninhalt...</p>
+            <div className="md:w-1/2 flex-1 md:flex-none min-h-0 flex flex-col items-center justify-center p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+              <RsvpPanel size="sm" />
             </div>
-          )}
-
-          {/* Error State */}
-          {mode === 'page' && pageError && !pageLoading && (
-            <div className="flex-1 flex flex-col items-center justify-center p-8">
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 
-                              rounded-xl p-6 max-w-md text-center">
-                <svg className="w-12 h-12 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <h3 className="text-lg font-semibold text-red-700 dark:text-red-300 mb-2">
-                  Fehler beim Laden
-                </h3>
-                <p className="text-red-600 dark:text-red-400 mb-4">{pageError}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Bitte nutze die Erweiterung über das Popup auf der gewünschten Webseite.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Content Views */}
-          {hasContent && (
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              {/* RSVP Only */}
-              {viewMode === 'rsvp' && (
-                <div className="flex-1 flex flex-col items-center justify-center p-4 gap-6 overflow-y-auto">
-                  <div className="w-full max-w-3xl bg-white dark:bg-gray-800 rounded-xl shadow-sm 
-                                  border border-gray-200 dark:border-gray-700 p-8">
-                    <RSVPDisplay fontSize={56} />
-                  </div>
-
-                    <div className="flex flex-col items-center gap-4 w-full max-w-xl">
-                      <PlaybackControls />
-                      <ProgressBar />
-                      <SpeedControl />
-                      <WordsPerChunkControl />
-                      <PlaybackSettings />
-                    </div>
-
-                  {/* Keyboard Shortcuts Info */}
-                  <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg max-w-md">
-                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Tastaturkürzel
-                    </h3>
-                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400">
-                      <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">Space</kbd> Play/Pause</span>
-                      <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">←</kbd> Voriger Satz</span>
-                      <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">→</kbd> Nächster Satz</span>
-                      <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">Shift+←</kbd> Vorig. Absatz</span>
-                      <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">Shift+→</kbd> Nächst. Absatz</span>
-                      <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">↑↓</kbd> Speed</span>
-                      <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">Home</kbd> Anfang</span>
-                      <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">End</kbd> Ende</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Split View */}
-              {viewMode === 'split' && (
-                <div className="flex-1 flex min-h-0 overflow-hidden">
-                  {/* Left: Preview */}
-                  <div className="w-1/2 border-r border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <ContentPreview className="h-full" />
-                  </div>
-
-                  {/* Right: RSVP */}
-                  <div className="w-1/2 flex flex-col items-center justify-center p-4 gap-4 overflow-y-auto">
-                    <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-sm 
-                                    border border-gray-200 dark:border-gray-700 p-6">
-                      <RSVPDisplay fontSize={42} />
-                    </div>
-
-                    <div className="flex flex-col items-center gap-3 w-full max-w-sm">
-                      <PlaybackControls size="sm" />
-                      <ProgressBar />
-                      <SpeedControl compact />
-                      <WordsPerChunkControl compact />
-                      <PlaybackSettings compact />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* PDF + RSVP Split View */}
-              {viewMode === 'pdfSplit' && mode === 'pdf' && (
-                <div className="flex-1 flex min-h-0 overflow-hidden">
-                  {/* Left: PDF Text Viewer */}
-                  <div className="w-1/2 border-r border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <PDFTextViewer 
-                      className="h-full" 
-                      autoSync={true} 
-                      onStartReading={handleStartReadingFromPDF}
-                      onHighlightPositionChange={handleHighlightPositionChange}
-                    />
-                  </div>
-
-                  {/* Right: RSVP - synchronisiert mit dem markierten Text links */}
-                  <div 
-                    ref={rsvpContainerRef}
-                    className="w-1/2 relative bg-gray-50 dark:bg-gray-900 overflow-hidden"
-                  >
-                    {/* RSVP Panel + Controls als eine bewegliche Einheit */}
-                    <div 
-                      className="absolute left-4 right-4 transition-all duration-200 ease-out"
-                      style={rsvpPanelStyle}
-                    >
-                      {/* RSVP Display */}
-                      <div className="w-full max-w-md mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg 
-                                      border border-gray-200 dark:border-gray-700 p-6 mb-4">
-                        <RSVPDisplay fontSize={42} />
-                      </div>
-                      
-                      {/* Controls - direkt unter RSVP */}
-                      <div className="w-full max-w-sm mx-auto">
-                        <div className="flex flex-col items-center gap-3 p-4 bg-white/80 dark:bg-gray-800/80 
-                                        backdrop-blur rounded-xl border border-gray-200 dark:border-gray-700">
-                          <PlaybackControls size="sm" />
-                          <ProgressBar />
-                          <SpeedControl compact />
-                          <WordsPerChunkControl compact />
-                          <PlaybackSettings compact />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ePub + RSVP Split View */}
-              {viewMode === 'epubSplit' && mode === 'epub' && (
-                <div className="flex-1 flex min-h-0 overflow-hidden">
-                  {/* Left: ePub Viewer */}
-                  <div className="w-1/2 border-r border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <EPubViewer 
-                      className="h-full" 
-                      autoSync={true} 
-                      onStartReading={handleStartReadingFromEPub}
-                    />
-                  </div>
-
-                  {/* Right: RSVP - vertikal zentriert, synchron mit dem markierten Text links */}
-                  <div className="w-1/2 flex flex-col bg-gray-50 dark:bg-gray-900">
-                    {/* RSVP Display - vertikal zentriert */}
-                    <div className="flex-1 flex items-center justify-center px-4">
-                      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-lg 
-                                      border border-gray-200 dark:border-gray-700 p-6">
-                        <RSVPDisplay fontSize={42} />
-                      </div>
-                    </div>
-
-                    {/* Controls - unten */}
-                    <div className="flex-shrink-0 p-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex flex-col items-center gap-3 w-full max-w-sm mx-auto">
-                        <PlaybackControls size="sm" />
-                        <ProgressBar />
-                        <SpeedControl compact />
-                        <WordsPerChunkControl compact />
-                        <PlaybackSettings compact />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </main>
-      </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }

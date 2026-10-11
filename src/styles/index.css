@@ -1,242 +1,226 @@
 @import "tailwindcss";
 
-/* Dark Mode via Class instead of Media Query (TailwindCSS v4) */
+/* Dark Mode über die Klasse `dark` am <html>-Element (setzt der ThemeProvider). */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Base styles */
-:root {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/*
+ * Eigene Basisstile liegen bewusst in @layer base. Ungeschichtete Regeln schlagen in
+ * Tailwind 4 ALLE Utilities (die in @layer utilities liegen) – z. B. würde ein ungeschichtetes
+ * `button { background: transparent }` jedes `bg-blue-600` auf Buttons überschreiben.
+ */
+@layer base {
+  :root {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    background-color: #f9fafb;
+    color: #111827;
+  }
+
+  .dark body {
+    background-color: #111827;
+    color: #f3f4f6;
+  }
+
+  button:not(:disabled),
+  [role="button"] {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+
+  kbd {
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 0.875em;
+  }
+
+  /* Schieberegler (Chromium) */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+    margin-top: -6px;
+  }
+
+  input[type="range"]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 4px;
+    background: #e5e7eb;
+    border-radius: 2px;
+  }
+
+  .dark input[type="range"]::-webkit-slider-runnable-track {
+    background: #374151;
+  }
+
+  /* Scrollbars im Dunkelmodus */
+  .dark ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .dark ::-webkit-scrollbar-track {
+    background: #1f2937;
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: #4b5563;
+    border-radius: 4px;
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
+  }
 }
 
-body {
-  margin: 0;
-  min-width: 320px;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
-/* Dark mode class support */
-.dark {
-  color-scheme: dark;
-}
+/*
+ * PDF-Seitenansicht (components/pdf/PdfPage, hooks/usePdfViewer).
+ * Der Textlayer-Teil entspricht pdf.js (web/pdf_viewer.css), damit die unsichtbaren
+ * Textstücke exakt über dem gerenderten Seitenbild liegen und sich markieren lassen.
+ */
+@layer base {
+  .pdf-page {
+    position: absolute;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25), 0 4px 14px rgba(0, 0, 0, 0.12);
+    isolation: isolate;
+    overflow: hidden;
+  }
 
-/* Custom scrollbar for dark mode */
-.dark ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
+  .pdf-page canvas {
+    display: block;
+  }
 
-.dark ::-webkit-scrollbar-track {
-  background: #1f2937;
-}
+  /* Dunkle Darstellung: Seitenbild invertieren, Farbtöne (Bilder) bleiben weitgehend erhalten. */
+  .pdf-dim .pdf-page {
+    background: #1a1a1a;
+  }
 
-.dark ::-webkit-scrollbar-thumb {
-  background: #4b5563;
-  border-radius: 4px;
-}
+  .pdf-dim .pdf-page canvas {
+    filter: invert(0.9) hue-rotate(180deg);
+  }
 
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
-}
+  .textLayer {
+    position: absolute;
+    text-align: initial;
+    inset: 0;
+    overflow: clip;
+    opacity: 1;
+    line-height: 1;
+    -webkit-text-size-adjust: none;
+    text-size-adjust: none;
+    forced-color-adjust: none;
+    transform-origin: 0 0;
+    caret-color: CanvasText;
+    z-index: 0;
+    --min-font-size: 1;
+    --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+    --min-font-size-inv: calc(1 / var(--min-font-size));
+    /* Hervorhebungen (gelb/blau) sollen den schwarzen Text der Seite nicht überdecken. */
+    mix-blend-mode: multiply;
+  }
 
-/* Range input styling */
-input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-}
+  .pdf-dim .textLayer {
+    mix-blend-mode: screen;
+  }
 
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #3b82f6;
-  cursor: pointer;
-  margin-top: -6px;
-}
+  .textLayer :is(span, br) {
+    color: transparent;
+    position: absolute;
+    white-space: pre;
+    cursor: text;
+    transform-origin: 0% 0%;
+  }
 
-input[type="range"]::-webkit-slider-runnable-track {
-  width: 100%;
-  height: 4px;
-  background: #e5e7eb;
-  border-radius: 2px;
-}
+  .textLayer > :not(.markedContent),
+  .textLayer .markedContent span:not(.markedContent) {
+    z-index: 1;
+    --font-height: 0;
+    font-size: calc(var(--text-scale-factor) * var(--font-height));
+    --scale-x: 1;
+    --rotate: 0deg;
+    transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+  }
 
-.dark input[type="range"]::-webkit-slider-runnable-track {
-  background: #374151;
-}
+  .textLayer .markedContent {
+    display: contents;
+  }
 
-/* Focus styles */
-:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
+  .textLayer span[role="img"] {
+    user-select: none;
+    cursor: default;
+  }
 
-/* Button reset for dark mode */
-button {
-  border: none;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
+  .textLayer br::selection {
+    background: transparent;
+  }
 
-/* Kbd styling */
-kbd {
-  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 0.875em;
-}
+  .textLayer ::selection {
+    background: rgba(0, 0, 255, 0.25);
+  }
 
-/* PDF Text Layer Styling - Compatible with PDF.js 4.x/5.x */
-/* Optimiert für präzise Textausrichtung und smooth Selection */
-.text-layer {
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  overflow: hidden;
-  line-height: 1.0;
-  pointer-events: auto;
-  user-select: text;
-  -webkit-user-select: text;
-  -moz-user-select: text;
-  z-index: 2;
-  /* Optimize for stable rendering */
-  opacity: 1;
-}
+  .textLayer .endOfContent {
+    display: block;
+    position: absolute;
+    inset: 100% 0 0;
+    z-index: 0;
+    cursor: default;
+    user-select: none;
+  }
 
-/* PDF.js 4.x/5.x creates nested spans (markedContent > span), so use descendant selector */
-.text-layer span {
-  color: transparent;
-  position: absolute;
-  white-space: pre;
-  cursor: text;
-  transform-origin: 0% 0%;
-  pointer-events: auto;
-  user-select: text;
-  /* Bessere Rendering-Qualität */
-  -webkit-font-smoothing: subpixel-antialiased;
-  -moz-osx-font-smoothing: auto;
-}
+  .textLayer.selecting .endOfContent {
+    top: 0;
+  }
 
-/* Also target direct children for backwards compatibility */
-.text-layer > span {
-  color: transparent;
-  position: absolute;
-  white-space: pre;
-  cursor: text;
-  transform-origin: 0% 0%;
-}
+  /* Aktuelles RSVP-Wort / eigener Lesebereich (CSS Custom Highlight API). */
+  ::highlight(rsvp-current) {
+    background-color: rgba(250, 204, 21, 0.85);
+    color: transparent;
+  }
 
-/* Selection highlighting - covers all nested levels */
-/* Verbesserte Sichtbarkeit und konsistentes Verhalten */
-.text-layer span::selection,
-.text-layer > span::selection {
-  background: rgba(59, 130, 246, 0.4);
-  color: transparent;
-}
+  ::highlight(rsvp-range) {
+    background-color: rgba(96, 165, 250, 0.3);
+    color: transparent;
+  }
 
-.text-layer span::-moz-selection,
-.text-layer > span::-moz-selection {
-  background: rgba(59, 130, 246, 0.4);
-  color: transparent;
-}
+  .pdf-dim ::highlight(rsvp-current) {
+    background-color: rgba(161, 98, 7, 0.9);
+  }
 
-/* Ensure markedContent spans are also selectable */
-.text-layer .markedContent {
-  position: absolute;
-  pointer-events: auto;
-  user-select: text;
-}
-
-/* Verbesserte Highlight-Sichtbarkeit im Dark Mode */
-.dark .text-layer span::selection,
-.dark .text-layer > span::selection {
-  background: rgba(96, 165, 250, 0.6);
-}
-
-.dark .text-layer span::-moz-selection,
-.dark .text-layer > span::-moz-selection {
-  background: rgba(96, 165, 250, 0.6);
-}
-
-/* PDF Canvas Container (Legacy - for old PDFViewer) */
-.pdf-canvas-container {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  background-color: #525659;
-  min-height: 100%;
-  padding: 1rem;
-}
-
-.pdf-page-wrapper {
-  position: relative;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-  background-color: white;
-}
-
-/* PDF Text Viewer Styling - Text-based rendering */
-.pdf-text-content {
-  user-select: text;
-  -webkit-user-select: text;
-  -moz-user-select: text;
-}
-
-.pdf-text-content p {
-  cursor: text;
-}
-
-/* PDF Page separator */
-.pdf-page {
-  scroll-margin-top: 2rem;
-}
-
-/* PDF Word spans for precise highlighting */
-.pdf-word {
-  cursor: text;
-  display: inline;
-}
-
-/* Text selection in PDF Text Viewer - Subtle blue */
-.pdf-text-content ::selection {
-  background: rgba(59, 130, 246, 0.15);
-  color: inherit;
-}
-
-.pdf-text-content ::-moz-selection {
-  background: rgba(59, 130, 246, 0.15);
-  color: inherit;
-}
-
-.dark .pdf-text-content ::selection {
-  background: rgba(96, 165, 250, 0.2);
-  color: inherit;
-}
-
-.dark .pdf-text-content ::-moz-selection {
-  background: rgba(96, 165, 250, 0.2);
-  color: inherit;
-}
-
-/* RSVP Text Highlighting (for PDF Text Viewer) */
-.rsvp-text-highlight {
-  background-color: #fef08a !important;
-  color: #1f2937 !important;
-  border-radius: 2px;
-  padding: 0 2px;
-  box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.3);
-  transition: background-color 0.15s ease;
-}
-
-.dark .rsvp-text-highlight {
-  background-color: #854d0e !important;
-  color: #fef9c3 !important;
-  box-shadow: 0 0 0 2px rgba(133, 77, 14, 0.4);
+  .pdf-dim ::highlight(rsvp-range) {
+    background-color: rgba(37, 99, 235, 0.45);
+  }
 }

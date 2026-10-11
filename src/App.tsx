@@ -1,18 +1,20 @@
-import { ThemeProvider } from '@/contexts/ThemeContext';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ReaderProvider } from '@/contexts/ReaderContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { Reader } from '@/reader/Reader';
 
 /**
- * Main App Component.
- * Dies wird für die Entwicklung im Browser verwendet.
- * Die Extension verwendet separate Entry-Points (popup, reader).
+ * Entwicklungs-Einstieg im normalen Browser (`npm run dev`, ohne Erweiterungs-API).
+ * Die Erweiterung selbst nutzt die Einstiegspunkte unter src/popup und src/reader.
  */
 function App() {
   return (
     <ThemeProvider>
-      <ReaderProvider>
-        <Reader />
-      </ReaderProvider>
+      <ErrorBoundary>
+        <ReaderProvider>
+          <Reader />
+        </ReaderProvider>
+      </ErrorBoundary>
     </ThemeProvider>
   );
 }

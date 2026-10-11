@@ -1,228 +1,130 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useReaderDispatch, useReaderSelector } from '@/contexts/ReaderContext';
 import { useEPubViewer } from '@/hooks/useEPubViewer';
-import { useReader } from '@/contexts/ReaderContext';
 import { useViewerSelection } from '@/hooks/useViewerSelection';
 import {
-  ViewerToolbar,
+  LoadingState,
+  NavigationButtons,
+  ReadingRangeInfo,
+  StartReadingButton,
+  ViewerContextMenu,
   ViewerInstructions,
-} from '@/components/shared/ViewerToolbar';
-import { ViewerContextMenu } from '@/components/shared/ViewerContextMenu';
-import { LoadingOverlay, ErrorDisplay } from '@/components/shared/LoadingState';
+} from '@/components/shared';
+import { ContentPreview } from '@/components/viewer';
 
 interface EPubViewerProps {
   className?: string;
-  autoSync?: boolean;
-  onStartReading?: (range?: { start: number; end: number }) => void;
+  /** Wird nach "Lesen starten" bzw. "Auswahl im RSVP starten" aufgerufen (Standard: Wiedergabe starten). */
+  onStartReading?: () => void;
 }
 
 /**
- * ePub Viewer Komponente mit epub.js Rendition.
- * Bietet Navigation, Textauswahl und RSVP-Synchronisation.
+ * ePub-Ansicht mit Kapitelnavigation, Hervorhebung des aktuellen RSVP-Wortes und
+ * Kontextmenü für markierten Text. Schlägt das Rendern fehl, wird automatisch die reine
+ * Textansicht gezeigt – das Lesen selbst ist davon nicht betroffen.
  */
-export function EPubViewer({ className, autoSync = false, onStartReading }: EPubViewerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { state, dispatch } = useReader();
+export function EPubViewer({ className = '', onStartReading }: EPubViewerProps) {
+  const dispatch = useReaderDispatch();
+  const chapters = useReaderSelector((s) => s.metadata.chapters);
+  const startIndex = useReaderSelector((s) => s.startIndex);
+  const endIndex = useReaderSelector((s) => s.endIndex);
+  const totalWords = useReaderSelector((s) => s.words.length);
 
-  const {
-    initRendition,
-    nextPage,
-    prevPage,
-    goToChapter,
-    syncToWordIndex,
-    getWordIndicesFromSelection,
-    getWordIndicesFromEpubSelection,
-    selectedText,
-    selectionPosition,
-    clearSelection,
-    currentPage,
-    totalPages,
-    isLoading,
-    error,
-  } = useEPubViewer();
+  const start = useCallback(() => {
+    if (onStartReading) onStartReading();
+    else dispatch({ type: 'PLAY' });
+  }, [dispatch, onStartReading]);
 
-  // Use shared selection hook
-  const {
-    showContextMenu,
-    contextMenuPosition,
-    selectedWordRange,
-    showMenu,
-    hideMenu,
-    handleContextMenuAction,
-  } = useViewerSelection({ onStartReading });
+  const selection = useViewerSelection({ onStartReading: start });
+  const { showMenu } = selection;
 
-  const lastSyncedIndex = useRef<number>(-1);
+  const { containerRef, status, detached, goToChapter, resumeFollowing } = useEPubViewer({
+    onSelectWords: (span, position) => showMenu(position, span),
+  });
 
-  // Initialize rendition when container is available
-  useEffect(() => {
-    if (containerRef.current && state.metadata.sourceType === 'epub' && state.words.length > 0) {
-      initRendition(containerRef.current);
-    }
-  }, [initRendition, state.metadata.sourceType, state.words.length]);
+  const chapterList = useMemo(() => chapters ?? [], [chapters]);
+  const currentChapter = useMemo(
+    () => chapterList.findIndex((c) => c.spineIndex === status.spineIndex),
+    [chapterList, status.spineIndex],
+  );
 
-  // Auto-sync to RSVP position (chapter-level sync only)
-  // Only sync during playback to prevent jumps when user sets start position manually
-  useEffect(() => {
-    if (!autoSync) return;
-    if (!state.isPlaying) {
-      // Update lastSyncedIndex when not playing to prevent jump on play start
-      lastSyncedIndex.current = state.currentIndex;
-      return;
-    }
-    if (state.currentIndex === lastSyncedIndex.current) return;
-
-    const chapters = state.metadata.chapters;
-    if (chapters && chapters.length > 0) {
-      const currentChapter = chapters.findIndex(
-        ch => state.currentIndex >= ch.startIndex && state.currentIndex <= ch.endIndex
-      );
-      const lastChapter = chapters.findIndex(
-        ch => lastSyncedIndex.current >= ch.startIndex && lastSyncedIndex.current <= ch.endIndex
-      );
-
-      if (currentChapter !== lastChapter && currentChapter >= 0) {
-        syncToWordIndex(state.currentIndex);
-      }
-    }
-
-    lastSyncedIndex.current = state.currentIndex;
-  }, [autoSync, state.isPlaying, state.currentIndex, state.metadata.chapters, syncToWordIndex]);
-
-  // Handle epub.js selection events
-  useEffect(() => {
-    if (!selectedText || !selectionPosition) return;
-
-    // Try to get word indices from epub.js selection
-    const range = getWordIndicesFromEpubSelection();
-    if (!range) {
-      // Fallback: try window.getSelection()
-      const windowRange = getWordIndicesFromSelection();
-      if (!windowRange) return;
-
-      showMenu(selectionPosition, windowRange);
-      return;
-    }
-
-    showMenu(selectionPosition, range);
-  }, [selectedText, selectionPosition, getWordIndicesFromEpubSelection, getWordIndicesFromSelection, showMenu]);
-
-  // Close menu and clear selection after action
-  const handleAction = useCallback((action: 'start' | 'end' | 'range' | 'read') => {
-    handleContextMenuAction(action);
-    clearSelection();
-  }, [handleContextMenuAction, clearSelection]);
-
-  // Fallback mouse handler for direct container selection
-  const handleMouseUp = useCallback((e: React.MouseEvent) => {
-    const selection = window.getSelection();
-    if (!selection || selection.isCollapsed) return;
-
-    const selectedTextFromWindow = selection.toString().trim();
-    if (!selectedTextFromWindow) return;
-
-    const range = getWordIndicesFromSelection();
-    if (!range) return;
-
-    e.preventDefault();
-    showMenu({ x: e.clientX, y: e.clientY }, range);
-  }, [getWordIndicesFromSelection, showMenu]);
-
-  // Chapter navigation handler
-  const handleChapterSelect = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    const chapterIndex = parseInt(e.target.value, 10);
-    goToChapter(chapterIndex);
-
-    const chapter = state.metadata.chapters?.[chapterIndex];
-    if (chapter) {
-      dispatch({ type: 'SET_INDEX', payload: chapter.startIndex });
-    }
-  }, [goToChapter, state.metadata.chapters, dispatch]);
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
-
-      switch (e.key) {
-        case 'PageUp':
-          e.preventDefault();
-          prevPage();
-          break;
-        case 'PageDown':
-          e.preventDefault();
-          nextPage();
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [prevPage, nextPage]);
-
-  // Find current chapter
-  const currentChapterIndex = state.metadata.chapters?.findIndex(
-    ch => state.currentIndex >= ch.startIndex && state.currentIndex <= ch.endIndex
-  ) ?? 0;
+  // Fallback: Textansicht, wenn das Buch nicht gerendert werden kann.
+  if (status.phase === 'error') {
+    return (
+      <div className={`flex flex-col h-full min-h-0 ${className}`}>
+        <p role="status" className="flex-shrink-0 px-3 py-2 text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
+          Die Buchansicht ist nicht verfügbar ({status.error}). Der Text wird ohne Layout angezeigt.
+        </p>
+        <ContentPreview className="flex-1 min-h-0" onStartReading={onStartReading} />
+      </div>
+    );
+  }
 
   return (
-    <div className={`flex flex-col h-full bg-white dark:bg-gray-800 ${className || ''}`}>
-      {/* Toolbar */}
-      <ViewerToolbar
-        navigation={{
-          onPrev: prevPage,
-          onNext: nextPage,
-        }}
-        pageInfo={{
-          current: currentPage,
-          total: totalPages,
-        }}
-        onStartReading={() => onStartReading?.()}
-      >
-        {/* Chapter selector */}
-        {state.metadata.chapters && state.metadata.chapters.length > 0 && (
-          <select
-            value={currentChapterIndex}
-            onChange={handleChapterSelect}
-            className="flex-1 max-w-xs px-2 py-1 text-sm bg-white dark:bg-gray-800 border border-gray-300 
-                       dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent truncate"
-            aria-label="Kapitel auswählen"
-          >
-            {state.metadata.chapters.map((chapter, index) => (
-              <option key={chapter.id} value={index}>
-                {chapter.title}
-              </option>
-            ))}
-          </select>
-        )}
-      </ViewerToolbar>
-
-      {/* ePub Container */}
-      <div
-        ref={containerRef}
-        className="flex-1 overflow-hidden relative"
-        onMouseUp={handleMouseUp}
-        style={{ minHeight: '400px' }}
-      >
-        <LoadingOverlay show={isLoading} message="Lade ePub..." />
-        {error && <ErrorDisplay message={error} overlay />}
+    <div className={`flex flex-col h-full min-h-0 ${className}`}>
+      <div className="flex-shrink-0 flex items-center justify-between gap-2 p-2 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-2 min-w-0">
+          <NavigationButtons
+            onPrev={() => goToChapter(Math.max(0, currentChapter - 1))}
+            onNext={() => goToChapter(Math.min(chapterList.length - 1, currentChapter + 1))}
+            prevDisabled={currentChapter <= 0}
+            nextDisabled={currentChapter < 0 || currentChapter >= chapterList.length - 1}
+          />
+          {chapterList.length > 0 && (
+            <label className="flex items-center gap-1 text-sm min-w-0">
+              <span className="sr-only">Kapitel</span>
+              <select
+                value={Math.max(0, currentChapter)}
+                onChange={(e) => goToChapter(Number(e.target.value))}
+                className="max-w-56 truncate rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1"
+              >
+                {chapterList.map((chapter, i) => (
+                  <option key={chapter.id} value={i}>
+                    {chapter.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+        <StartReadingButton onClick={start} />
       </div>
 
-      {/* Context Menu */}
-      {showContextMenu && selectedWordRange && (
+      <ReadingRangeInfo
+        startIndex={startIndex}
+        endIndex={endIndex}
+        totalWords={totalWords}
+        onReset={() => dispatch({ type: 'SET_READING_RANGE', payload: { startIndex: 0, endIndex: null } })}
+      />
+
+      <div className="relative flex-1 min-h-0 bg-white dark:bg-gray-900">
+        <div ref={containerRef} className="absolute inset-0" data-testid="epub-container" />
+        {status.phase === 'loading' && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-900/80 pointer-events-none">
+            <LoadingState message="Kapitel wird geladen…" color="purple" />
+          </div>
+        )}
+        {detached && (
+          <button
+            type="button"
+            onClick={resumeFollowing}
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 text-sm rounded-full shadow-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+          >
+            Zur aktuellen Stelle
+          </button>
+        )}
+      </div>
+
+      <ViewerInstructions text="Klicke ein Wort, um dorthin zu springen. Markiere Text, um Start, Ende oder einen Lesebereich festzulegen." />
+
+      {selection.showContextMenu && (
         <ViewerContextMenu
-          position={contextMenuPosition}
-          selectedRange={selectedWordRange}
-          onAction={handleAction}
-          onClose={() => {
-            hideMenu();
-            clearSelection();
-          }}
+          position={selection.contextMenuPosition}
+          selectedRange={selection.selectedWordRange}
+          onAction={selection.handleContextMenuAction}
+          onClose={selection.hideMenu}
         />
       )}
-
-      {/* Instructions */}
-      <ViewerInstructions
-        text="Markiere Text im ePub, um Startpunkt oder Endpunkt festzulegen. Tastenkürzel: ← → Sätze, Shift+← → Absätze"
-      />
     </div>
   );
 }

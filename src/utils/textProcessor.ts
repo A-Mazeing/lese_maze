@@ -1,211 +1,193 @@
+import { cleanText } from './cleanText';
+import { extractTextInReadingOrder } from './htmlText';
+
+export { cleanText };
+
 /**
- * Gängige Abkürzungen, die nicht als Satzende gelten
+ * Gängige Abkürzungen (ohne abschließenden Punkt, kleingeschrieben), nach denen
+ * ein Satz normalerweise NICHT endet.
  */
 const ABBREVIATIONS = new Set([
-  'dr', 'mr', 'mrs', 'ms', 'prof', 'sr', 'jr',
-  'z.b', 'u.a', 'd.h', 'etc', 'bzw', 'ca', 'ggf',
-  'nr', 'tel', 'str', 'inkl', 'exkl', 'max', 'min',
-  'vgl', 'evtl', 'usw', 'bspw', 'sog', 'lt',
+  // Titel / Anreden
+  'dr', 'prof', 'mr', 'mrs', 'ms', 'sr', 'jr', 'hr', 'fr', 'st', 'dipl', 'ing', 'med', 'jur', 'rer', 'nat', 'phil',
+  // Deutsch
+  'z.b', 'u.a', 'd.h', 'i.d.r', 'u.u', 's.o', 's.u', 'o.ä', 'z.t', 'z.z', 'z.zt', 'm.e', 'e.v', 'v.a', 'u.ä', 'o.g',
+  'etc', 'usw', 'bzw', 'ca', 'ggf', 'evtl', 'vgl', 'bspw', 'sog', 'inkl', 'exkl', 'max', 'min', 'mind', 'nr', 'tel',
+  'str', 'abb', 'tab', 'kap', 'bd', 'hrsg', 'jh', 'jhd', 'mio', 'mrd', 'ff', 'lt', 'gem', 'zzgl', 'abs', 'anm', 'vs',
+  // Englisch
+  'inc', 'ltd', 'co', 'corp', 'e.g', 'i.e', 'cf', 'approx', 'dept', 'est', 'fig', 'no', 'vol',
 ]);
 
-/**
- * Prüft ob ein Wort mit einem Satzzeichen endet
- */
+/** Schließende Zeichen, die nach dem Satzzeichen stehen können: ." .) .» … */
+const CLOSING_PUNCT = '"\'“”„‘’»«)\\]';
+const SENTENCE_END_RE = new RegExp(`[.!?…][${CLOSING_PUNCT}]*$`, 'u');
+const TRAILING_CLOSING_RE = new RegExp(`[${CLOSING_PUNCT}]+$`, 'u');
+const LEADING_OPENING_RE = /^[\s"'“”„‘‚«»([{¿¡*_–—-]+/u;
+
+/** Prüft, ob ein Wort mit einem Satzzeichen (optional gefolgt von Anführungszeichen) endet. */
 function endsWithSentenceEnding(word: string): boolean {
-  return /[.!?]$/.test(word);
+  return SENTENCE_END_RE.test(word);
 }
 
 /**
- * Prüft ob ein Wort eine Abkürzung ist
+ * Prüft, ob ein auf "." endendes Wort eine Abkürzung, ein Initial ("J.") oder
+ * eine Ordnungszahl ("3.") ist – dann beginnt danach kein neuer Satz.
  */
 function isAbbreviation(word: string): boolean {
-  const cleaned = word.toLowerCase().replace(/[.!?]+$/, '');
-  return ABBREVIATIONS.has(cleaned);
+  const core = word.replace(TRAILING_CLOSING_RE, '');
+  // Nur ein einzelner Punkt kann eine Abkürzung markieren; "..." / "!" / "?" nicht.
+  if (!core.endsWith('.') || core.endsWith('..') || core.endsWith('…')) return false;
+
+  const stem = core.slice(0, -1).replace(/^[^\p{L}\p{N}]+/u, '').toLowerCase();
+  if (!stem) return false;
+  if (ABBREVIATIONS.has(stem)) return true;
+  if (/^\p{L}$/u.test(stem)) return true; // Initiale: "J." "K."
+  if (/^\d+$/u.test(stem)) return true; // Ordnungszahl: "3. Oktober"
+  return false;
 }
 
-/**
- * Prüft ob ein Wort mit einem Großbuchstaben beginnt
- */
+/** Prüft, ob ein Wort (nach führenden Anführungszeichen/Klammern) mit einem Großbuchstaben beginnt. */
 function startsWithCapital(word: string): boolean {
-  return word.length > 0 && /[A-ZÄÖÜ]/.test(word[0]);
+  const stripped = word.replace(LEADING_OPENING_RE, '');
+  return stripped.length > 0 && /^\p{Lu}/u.test(stripped);
 }
 
-/**
- * Struktur mit Wörtern und deren Grenzen
- */
+/** Struktur mit Wörtern und deren Grenzen. */
 export interface TextStructure {
   words: string[];
-  sentenceBreaks: number[];   // Indices wo Sätze beginnen
-  paragraphBreaks: number[];  // Indices wo Absätze beginnen
+  /** Indices, an denen ein Satz beginnt. */
+  sentenceBreaks: number[];
+  /** Indices, an denen ein Absatz beginnt. */
+  paragraphBreaks: number[];
+}
+
+/**
+ * Leitet Satz- und Absatzgrenzen aus einer fertigen Wortliste ab.
+ *
+ * @param words Wörter in Lesereihenfolge
+ * @param paragraphStarts Indices (aufsteigend), an denen ein Absatz beginnt; Index 0
+ *        gilt immer als Absatzanfang.
+ *
+ * Satzgrenzen: Ein Wort endet mit . ! ? … (ggf. gefolgt von Anführungszeichen), ist
+ * keine Abkürzung, und das nächste Wort beginnt mit einem Großbuchstaben. Jeder
+ * Absatzanfang ist zugleich ein Satzanfang.
+ */
+export function buildTextStructure(words: string[], paragraphStarts: readonly number[]): TextStructure {
+  const sentenceBreaks: number[] = [];
+  const paragraphBreaks: number[] = [];
+  if (words.length === 0) return { words, sentenceBreaks, paragraphBreaks };
+
+  const starts = new Set<number>(paragraphStarts.filter((i) => i > 0 && i < words.length));
+  starts.add(0);
+
+  for (let i = 0; i < words.length; i++) {
+    if (starts.has(i)) {
+      paragraphBreaks.push(i);
+      sentenceBreaks.push(i);
+      continue;
+    }
+    const previous = words[i - 1];
+    if (endsWithSentenceEnding(previous) && !isAbbreviation(previous) && startsWithCapital(words[i])) {
+      sentenceBreaks.push(i);
+    }
+  }
+  return { words, sentenceBreaks, paragraphBreaks };
 }
 
 /**
  * Tokenisiert einen Text in einzelne Wörter und erkennt Satz- und Absatzgrenzen.
- * 
- * Satzgrenzen:
- * - Ein Satz endet, wenn ein Wort mit . ! oder ? endet
- * - UND das nächste Wort mit einem Großbuchstaben beginnt
- * - Ausnahmen: Bekannte Abkürzungen werden nicht als Satzende gewertet
- * 
- * Absatzgrenzen:
- * - Absätze werden durch doppelte Zeilenumbrüche getrennt (\n\n, \r\n\r\n)
+ * Absatzgrenzen sind Leerzeilen (zwei aufeinanderfolgende Zeilenumbrüche).
  */
 export function tokenizeTextWithStructure(text: string): TextStructure {
-  if (!text) {
-    return {
-      words: [],
-      sentenceBreaks: [],
-      paragraphBreaks: [],
-    };
-  }
+  if (!text) return { words: [], sentenceBreaks: [], paragraphBreaks: [] };
 
-  // Splitte Text in Absätze (durch doppelte Zeilenumbrüche)
-  const paragraphs = text.split(/\n\s*\n|\r\n\s*\r\n/);
-  
   const words: string[] = [];
-  const sentenceBreaks: number[] = [0]; // Erster Satz beginnt bei Index 0
-  const paragraphBreaks: number[] = [0]; // Erster Absatz beginnt bei Index 0
-  
-  let wordIndex = 0;
-  let lastWasSentenceEnd = false;
+  const paragraphStarts: number[] = [];
 
-  for (let pIndex = 0; pIndex < paragraphs.length; pIndex++) {
-    const paragraph = paragraphs[pIndex].trim();
-    
-    if (!paragraph) continue; // Überspringe leere Absätze
-    
-    // Markiere Absatzbeginn (außer beim ersten Absatz, den wir schon bei 0 haben)
-    if (pIndex > 0 && wordIndex > 0) {
-      paragraphBreaks.push(wordIndex);
-      // Neuer Absatz ist auch ein neuer Satz
-      if (!lastWasSentenceEnd) {
-        sentenceBreaks.push(wordIndex);
-      }
-      lastWasSentenceEnd = false;
-    }
-    
-    // Tokenisiere Absatz in Wörter
-    const paragraphWords = paragraph
-      .replace(/\s+/g, ' ')
-      .trim()
-      .split(' ')
-      .filter(word => word.length > 0);
-    
-    // Verarbeite jedes Wort für Satzgrenzen-Erkennung
-    for (let i = 0; i < paragraphWords.length; i++) {
-      const word = paragraphWords[i];
-      const nextWord = paragraphWords[i + 1];
-      
-      words.push(word);
-      
-      // Prüfe ob dies ein Satzende ist
-      if (endsWithSentenceEnding(word)) {
-        // Ist es eine Abkürzung?
-        if (isAbbreviation(word)) {
-          lastWasSentenceEnd = false;
-        } else if (nextWord && startsWithCapital(nextWord)) {
-          // Satzende erkannt, nächstes Wort ist neuer Satz
-          sentenceBreaks.push(wordIndex + 1);
-          lastWasSentenceEnd = true;
-        } else {
-          lastWasSentenceEnd = false;
-        }
-      } else {
-        lastWasSentenceEnd = false;
-      }
-      
-      wordIndex++;
-    }
+  for (const rawParagraph of text.split(/\r?\n(?:[^\S\r\n]*\r?\n)+/)) {
+    const paragraph = rawParagraph.trim();
+    if (!paragraph) continue;
+    paragraphStarts.push(words.length);
+    for (const word of paragraph.split(/\s+/)) words.push(word);
   }
-
-  // Entferne Duplikate und sortiere
-  const uniqueSentenceBreaks = [...new Set(sentenceBreaks)].sort((a, b) => a - b);
-  const uniqueParagraphBreaks = [...new Set(paragraphBreaks)].sort((a, b) => a - b);
-
-  return {
-    words,
-    sentenceBreaks: uniqueSentenceBreaks,
-    paragraphBreaks: uniqueParagraphBreaks,
-  };
+  return buildTextStructure(words, paragraphStarts);
 }
 
 /**
- * Tokenisiert einen Text in einzelne Wörter für RSVP.
- * Entfernt leere Strings und normalisiert Whitespace.
+ * Fügt mehrere Teilstrukturen (z. B. PDF-Seiten, ePub-Kapitel) zusammen.
+ * Der Beginn jedes nicht-leeren Teils ist zugleich Absatz- und Satzgrenze.
+ *
+ * Arbeitet bewusst mit Schleifen statt `push(...arr)`, damit auch Teile mit
+ * Hunderttausenden Wörtern keinen "Maximum call stack size exceeded" auslösen.
  */
+export function mergeTextStructures(parts: readonly TextStructure[]): TextStructure & { partStarts: number[] } {
+  const words: string[] = [];
+  const sentenceBreaks: number[] = [];
+  const paragraphBreaks: number[] = [];
+  const partStarts: number[] = [];
+
+  for (const part of parts) {
+    const offset = words.length;
+    partStarts.push(offset);
+    if (part.words.length === 0) continue;
+
+    for (const w of part.words) words.push(w);
+    for (const b of part.sentenceBreaks) pushUnique(sentenceBreaks, b + offset);
+    for (const b of part.paragraphBreaks) pushUnique(paragraphBreaks, b + offset);
+    pushUnique(sentenceBreaks, offset);
+    pushUnique(paragraphBreaks, offset);
+  }
+
+  sentenceBreaks.sort((a, b) => a - b);
+  paragraphBreaks.sort((a, b) => a - b);
+  return { words, sentenceBreaks, paragraphBreaks, partStarts };
+}
+
+function pushUnique(list: number[], value: number): void {
+  if (list.length === 0 || list[list.length - 1] < value) {
+    list.push(value);
+  } else if (!list.includes(value)) {
+    list.push(value);
+  }
+}
+
+/** Tokenisiert einen Text in einzelne Wörter (ohne Struktur). */
 export function tokenizeText(text: string): string[] {
-  if (!text) {
-    return [];
-  }
-  
-  // Normalisiere Whitespace und splitte in Wörter
-  return text
-    .replace(/\s+/g, ' ')
-    .trim()
-    .split(' ')
-    .filter(word => word.length > 0);
+  if (!text) return [];
+  return text.split(/\s+/).filter((word) => word.length > 0);
 }
 
 /**
- * Bereinigt Text von unerwünschten Zeichen,
- * behält aber Satzzeichen für natürliche Pausen.
- * WICHTIG: Behält Zeilenumbrüche für Absatzerkennung!
- */
-export function cleanText(text: string): string {
-  return text
-    // Normalisiere mehrfache Leerzeichen (aber behalte Zeilenumbrüche)
-    .replace(/[^\S\n]+/g, ' ')
-    // Normalisiere mehrfache Zeilenumbrüche zu maximal 2
-    .replace(/\n{3,}/g, '\n\n')
-    // Entferne Steuerzeichen (außer \n und \r)
-    .replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F]/g, '')
-    // Normalisiere Anführungszeichen
-    .replace(/[""]/g, '"')
-    .replace(/['']/g, "'")
-    .trim();
-}
-
-/**
- * Extrahiert reinen Text aus HTML.
+ * Extrahiert reinen Text aus HTML. Block-Elemente erzeugen Absatzgrenzen, damit
+ * Wörter benachbarter Absätze nicht zusammenwachsen ("Ende</p><p>Anfang").
  */
 export function extractTextFromHTML(html: string): string {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  
-  // Entferne Script und Style Tags
-  doc.querySelectorAll('script, style, noscript').forEach(el => el.remove());
-  
-  // Hole den Text
-  const text = doc.body?.textContent || '';
-  
-  return cleanText(text);
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const root = doc.body ?? doc.documentElement;
+  if (!root) return '';
+  return cleanText(extractTextInReadingOrder(root));
 }
 
-/**
- * Schätzt die Lesezeit basierend auf Wortanzahl und WPM.
- */
+/** Schätzt die Lesezeit basierend auf Wortanzahl und WPM. */
 export function estimateReadingTime(wordCount: number, wpm: number): string {
+  if (wordCount <= 0 || wpm <= 0) return 'Weniger als 1 Minute';
   const minutes = Math.ceil(wordCount / wpm);
-  
-  if (minutes < 1) return 'Weniger als 1 Minute';
-  if (minutes === 1) return '1 Minute';
+
+  if (minutes <= 1) return minutes < 1 ? 'Weniger als 1 Minute' : '1 Minute';
   if (minutes < 60) return `${minutes} Minuten`;
-  
+
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
-  
+
   if (remainingMinutes === 0) {
     return hours === 1 ? '1 Stunde' : `${hours} Stunden`;
   }
-  
   return `${hours}h ${remainingMinutes}min`;
 }
 
-/**
- * Formatiert einen Fortschritt als Prozent-String.
- */
+/** Formatiert einen Fortschritt als Prozent-String. */
 export function formatProgress(current: number, total: number): string {
-  if (total === 0) return '0%';
+  if (total <= 0) return '0%';
   const percent = Math.round((current / total) * 100);
-  return `${percent}%`;
+  return `${Math.max(0, Math.min(100, percent))}%`;
 }

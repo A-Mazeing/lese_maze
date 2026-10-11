@@ -1,4 +1,4 @@
-import { useReader } from '@/contexts/ReaderContext';
+import { useReaderDispatch, useReaderSelector } from '@/contexts/ReaderContext';
 
 interface PlaybackSettingsProps {
   compact?: boolean;
@@ -8,14 +8,17 @@ interface PlaybackSettingsProps {
  * Playback-Einstellungen für Ramp-up und Pause-Verhalten.
  */
 export function PlaybackSettings({ compact = false }: PlaybackSettingsProps) {
-  const { state, dispatch } = useReader();
+  const dispatch = useReaderDispatch();
+  const rampUpEnabled = useReaderSelector((s) => s.rampUpEnabled);
+  const rampUpDuration = useReaderSelector((s) => s.rampUpDuration);
+  const rewindOnPause = useReaderSelector((s) => s.rewindOnPause);
 
   const handleRampUpToggle = () => {
-    dispatch({ type: 'SET_RAMP_UP_ENABLED', payload: !state.rampUpEnabled });
+    dispatch({ type: 'SET_RAMP_UP_ENABLED', payload: !rampUpEnabled });
   };
 
   const handleRewindOnPauseToggle = () => {
-    dispatch({ type: 'SET_REWIND_ON_PAUSE', payload: !state.rewindOnPause });
+    dispatch({ type: 'SET_REWIND_ON_PAUSE', payload: !rewindOnPause });
   };
 
   const handleRampUpDurationChange = (value: number) => {
@@ -29,7 +32,7 @@ export function PlaybackSettings({ compact = false }: PlaybackSettingsProps) {
         <label className="flex items-center gap-1.5 cursor-pointer">
           <input
             type="checkbox"
-            checked={state.rampUpEnabled}
+            checked={rampUpEnabled}
             onChange={handleRampUpToggle}
             className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 
                        text-blue-600 focus:ring-blue-500 dark:bg-gray-700"
@@ -41,7 +44,7 @@ export function PlaybackSettings({ compact = false }: PlaybackSettingsProps) {
         <label className="flex items-center gap-1.5 cursor-pointer">
           <input
             type="checkbox"
-            checked={state.rewindOnPause}
+            checked={rewindOnPause}
             onChange={handleRewindOnPauseToggle}
             className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 
                        text-blue-600 focus:ring-blue-500 dark:bg-gray-700"
@@ -63,7 +66,7 @@ export function PlaybackSettings({ compact = false }: PlaybackSettingsProps) {
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
-            checked={state.rampUpEnabled}
+            checked={rampUpEnabled}
             onChange={handleRampUpToggle}
             className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 
                        text-blue-600 focus:ring-blue-500 dark:bg-gray-700"
@@ -73,18 +76,19 @@ export function PlaybackSettings({ compact = false }: PlaybackSettingsProps) {
           </span>
         </label>
         
-        {state.rampUpEnabled && (
+        {rampUpEnabled && (
           <div className="flex items-center gap-2 ml-6">
             <input
               type="range"
-              min="2"
-              max="15"
-              value={state.rampUpDuration}
+              min="1"
+              max="20"
+              value={rampUpDuration}
               onChange={(e) => handleRampUpDurationChange(Number(e.target.value))}
+              aria-label="Dauer des sanften Starts in Wörtern"
               className="w-24 h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
             />
             <span className="text-sm text-gray-500 dark:text-gray-400 w-16">
-              {state.rampUpDuration} Wörter
+              {rampUpDuration} {rampUpDuration === 1 ? 'Chunk' : 'Chunks'}
             </span>
           </div>
         )}
@@ -99,7 +103,7 @@ export function PlaybackSettings({ compact = false }: PlaybackSettingsProps) {
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
-            checked={state.rewindOnPause}
+            checked={rewindOnPause}
             onChange={handleRewindOnPauseToggle}
             className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 
                        text-blue-600 focus:ring-blue-500 dark:bg-gray-700"

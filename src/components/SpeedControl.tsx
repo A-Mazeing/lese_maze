@@ -1,14 +1,17 @@
-import { useRSVP } from '@/hooks/useRSVP';
+import { useReaderDispatch, useReaderSelector } from '@/contexts/ReaderContext';
+import { WPM_MAX, WPM_MIN } from '@/utils/storage';
 
 interface SpeedControlProps {
   compact?: boolean;
 }
 
 /**
- * Speed Control Komponente mit WPM Slider (100-1000).
+ * Geschwindigkeitsregler (Slider 100-1000 WPM; per Tastatur/Buttons 50-1500).
  */
 export function SpeedControl({ compact = false }: SpeedControlProps) {
-  const { wpm, setWpm } = useRSVP();
+  const wpm = useReaderSelector((s) => s.wpm);
+  const dispatch = useReaderDispatch();
+  const setWpm = (value: number) => dispatch({ type: 'SET_WPM', payload: value });
 
   if (compact) {
     return (
@@ -24,6 +27,7 @@ export function SpeedControl({ compact = false }: SpeedControlProps) {
           step={25}
           value={wpm}
           onChange={(e) => setWpm(Number(e.target.value))}
+          aria-label="Geschwindigkeit in Wörtern pro Minute"
           className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer
                      accent-blue-500 dark:accent-blue-400"
         />
@@ -44,13 +48,14 @@ export function SpeedControl({ compact = false }: SpeedControlProps) {
         step={10}
         value={wpm}
         onChange={(e) => setWpm(Number(e.target.value))}
+        aria-label="Geschwindigkeit in Wörtern pro Minute"
         className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer
                    accent-blue-500 dark:accent-blue-400"
       />
 
       <div className="flex gap-1">
         <button
-          onClick={() => setWpm(Math.max(100, wpm - 50))}
+          onClick={() => setWpm(Math.max(WPM_MIN, wpm - 50))}
           className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 
                      dark:hover:bg-gray-600 transition-colors"
           aria-label="Geschwindigkeit verringern"
@@ -58,7 +63,7 @@ export function SpeedControl({ compact = false }: SpeedControlProps) {
           -50
         </button>
         <button
-          onClick={() => setWpm(Math.min(1000, wpm + 50))}
+          onClick={() => setWpm(Math.min(WPM_MAX, wpm + 50))}
           className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 
                      dark:hover:bg-gray-600 transition-colors"
           aria-label="Geschwindigkeit erhöhen"

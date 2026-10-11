@@ -1,13 +1,17 @@
 export { RSVPDisplay } from './RSVPDisplay';
 export { SpeedControl } from './SpeedControl';
+export { WordsPerChunkControl } from './WordsPerChunkControl';
+export { PlaybackSettings } from './PlaybackSettings';
 export { ProgressBar } from './ProgressBar';
 export { PlaybackControls } from './PlaybackControls';
 export { PDFSelector } from './PDFSelector';
-export { PDFViewer } from './PDFViewer'; // Legacy Canvas-based viewer
-export { PDFTextViewer } from './PDFTextViewer'; // New text-based viewer
+export { PDFTextViewer } from './PDFTextViewer';
+export { PDFViewer } from './PDFViewer';
+export { PDFPageViewer } from './PDFPageViewer';
 export { EPubSelector } from './EPubSelector';
+export { EPubViewer } from './EPubViewer';
+export { ContentPreview } from './ContentPreview';
 export { ThemeToggle } from './ThemeToggle';
-export { BookmarkList } from './BookmarkList';
+export { ErrorBoundary } from './ErrorBoundary';
 
-// Shared components
 export * from './shared';

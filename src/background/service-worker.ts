@@ -1,104 +1,56 @@
 /**
- * Chrome Extension Service Worker.
- * Verarbeitet Hintergrund-Aufgaben und Kommunikation.
+ * Service Worker (Manifest V3).
+ *
+ * Regeln für MV3-Service-Worker, die hier eingehalten werden:
+ *  - Alle Listener werden synchron auf oberster Ebene registriert (der Worker wird für
+ *    jedes Ereignis neu gestartet; später registrierte Listener würden das Ereignis verpassen).
+ *  - Es gibt keinen flüchtigen Zustand im Speicher; Zwischenergebnisse liegen in
+ *    chrome.storage.session.
+ *  - Jede Nachricht wird genau einmal beantwortet – auch im Fehlerfall – und der Kanal
+ *    wird für asynchrone Antworten offen gehalten (`return true`).
  */
+import { fail, type ExtensionRequest, type MessageResponse } from '@/types/messages';
+import { dispatchRequest, purgeStalePageContent } from './handlers';
 
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('RSVP Speed Reader installed');
-});
-
-// Listener für Nachrichten von Popup oder Content Scripts
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  switch (message.type) {
-    case 'OPEN_PDF_READER':
-      chrome.tabs.create({ url: chrome.runtime.getURL('src/reader/index.html?mode=pdf') });
-      sendResponse({ success: true });
-      break;
-      
-    case 'OPEN_EPUB_READER':
-      chrome.tabs.create({ url: chrome.runtime.getURL('src/reader/index.html?mode=epub') });
-      sendResponse({ success: true });
-      break;
-      
-    case 'READ_CURRENT_PAGE':
-      handleReadCurrentPage(sendResponse);
-      return true; // Keep channel open for async response
-      
-    default:
-      sendResponse({ success: false, error: 'Unknown message type' });
-  }
-  
-  return false;
-});
-
-async function handleReadCurrentPage(sendResponse: (response: unknown) => void) {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    if (!tab.id) {
-      sendResponse({ success: false, error: 'No active tab found' });
-      return;
-    }
-
-    // Prüfe ob es eine chrome:// oder extension:// URL ist
-    if (tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://')) {
-      sendResponse({ success: false, error: 'Cannot read content from browser pages' });
-      return;
-    }
-
-    // Injiziere Content Script falls nötig
-    try {
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['src/content/content.ts'],
-      });
-    } catch {
-      // Content Script könnte bereits injiziert sein, ignorieren
-    }
-
-    // Warte kurz, damit der Content Script seinen Listener registrieren kann
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // Hole Seiteninhalt mit Retry-Logik
-    let response = null;
-    let retries = 3;
-
-    while (retries > 0 && !response) {
-      try {
-        response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_PAGE_CONTENT' });
-      } catch (err) {
-        retries--;
-        if (retries > 0) {
-          await new Promise(resolve => setTimeout(resolve, 150));
-        } else {
-          throw err;
-        }
-      }
-    }
-    
-    if (response && response.content) {
-      // Speichere Inhalt in session storage BEVOR der Reader-Tab geöffnet wird
-      await chrome.storage.session.set({
-        pageContent: {
-          content: response.content,
-          title: response.title,
-          url: response.url,
-          timestamp: Date.now(),
-        }
-      });
-      
-      // Öffne Reader mit dem Inhalt in Split-Ansicht
-      const readerUrl = chrome.runtime.getURL('src/reader/index.html?mode=page&view=split');
-      await chrome.tabs.create({ url: readerUrl });
-      
-      sendResponse({ success: true });
-    } else {
-      sendResponse({ success: false, error: 'Could not get page content' });
-    }
-  } catch (error) {
-    console.error('Error reading page:', error);
-    sendResponse({ success: false, error: String(error) });
-  }
+/** Nachrichten werden nur von Seiten dieser Erweiterung akzeptiert (nie von Webseiten). */
+function isTrustedSender(sender: chrome.runtime.MessageSender): boolean {
+  if (sender.id !== chrome.runtime.id) return false;
+  // Content Scripts (sender.tab + keine Extension-URL) kommen nicht vor; Popup/Reader haben eine chrome-extension://-URL.
+  return !sender.url || sender.url.startsWith(`chrome-extension://${chrome.runtime.id}/`);
 }
 
-export {};
+function isExtensionRequest(message: unknown): message is ExtensionRequest {
+  if (typeof message !== 'object' || message === null) return false;
+  const candidate = message as { type?: unknown; mode?: unknown; resumeId?: unknown };
+  if (candidate.type === 'READ_CURRENT_PAGE') return true;
+  return (
+    candidate.type === 'OPEN_READER' &&
+    (candidate.mode === 'pdf' || candidate.mode === 'epub') &&
+    (candidate.resumeId === undefined || typeof candidate.resumeId === 'string')
+  );
+}
+
+chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse: (response: MessageResponse<unknown>) => void) => {
+  if (!isTrustedSender(sender)) {
+    sendResponse(fail('Nicht autorisierter Absender.'));
+    return false;
+  }
+  if (!isExtensionRequest(message)) {
+    sendResponse(fail('Unbekannte Nachricht.'));
+    return false;
+  }
+
+  dispatchRequest(message).then(sendResponse, (error: unknown) => {
+    console.error('[sw] Anfrage fehlgeschlagen:', message.type, error);
+    sendResponse(fail(error));
+  });
+  return true; // Antwort erfolgt asynchron
+});
+
+chrome.runtime.onInstalled.addListener(() => {
+  void purgeStalePageContent();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  void purgeStalePageContent();
+});

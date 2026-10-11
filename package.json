@@ -1,44 +1,56 @@
 {
-  "name": "lese_maze",
+  "name": "lese-maze",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "RSVP Speed Reader – Chrome-Extension (Manifest V3) zum Schnelllesen von PDF, ePub und Webseiten",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "predev": "node scripts/copy-pdfjs-assets.mjs",
+    "prebuild": "node scripts/copy-pdfjs-assets.mjs",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "check": "npm run typecheck && npm run lint && npm run test:run"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.1.18",
     "epubjs": "^0.3.93",
     "pdfjs-dist": "^5.4.530",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-native": "^0.83.1",
-    "react-virtuoso": "^4.18.1",
-    "tailwindcss": "^4.1.18"
+    "react-virtuoso": "^4.18.1"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.3.0",
     "@eslint/js": "^9.39.1",
+    "@tailwindcss/vite": "^4.1.18",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/chrome": "^0.1.36",
-    "@types/jsdom": "^27.0.0",
+    "@types/node": "^22.19.0",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
+    "@vitest/coverage-v8": "~4.0.18",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "jsdom": "^27.4.0",
+    "tailwindcss": "^4.1.18",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.0",
     "vite": "^7.2.4",
-    "vitest": "^4.0.18"
+    "vitest": "~4.0.18"
+  },
+  "overrides": {
+    "@xmldom/xmldom": "^0.8.11"
   }
 }

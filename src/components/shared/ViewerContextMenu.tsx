@@ -1,4 +1,4 @@
-import { ReactNode, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 
 /**
  * Word range for selection context
@@ -53,18 +53,20 @@ export function ViewerContextMenu({
   customActions,
   showWordRange = true,
 }: ViewerContextMenuProps) {
-  const [adjustedPosition, setAdjustedPosition] = useState(position);
+  const menuRef = useRef<HTMLDivElement>(null);
+  // Position wird beim Rendern abgeleitet (kein State + Effekt nötig).
+  const adjustedPosition = useMemo(() => adjustMenuPosition(position.x, position.y), [position.x, position.y]);
 
-  // Adjust position on mount and position change
+  // Schließen bei Klick außerhalb. Bewusst `mousedown` statt `click`: Das Menü öffnet sich
+  // beim `mouseup` einer Auswahl, und das direkt danach folgende `click`-Ereignis würde es
+  // sonst sofort wieder schließen.
   useEffect(() => {
-    setAdjustedPosition(adjustMenuPosition(position.x, position.y));
-  }, [position.x, position.y]);
-
-  // Close on click outside
-  useEffect(() => {
-    const handleClickOutside = () => onClose();
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    const handlePointerDown = (event: MouseEvent) => {
+      if (menuRef.current && event.target instanceof Node && menuRef.current.contains(event.target)) return;
+      onClose();
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
   }, [onClose]);
 
   // Close on Escape key
@@ -85,12 +87,13 @@ export function ViewerContextMenu({
 
   return (
     <div 
+      ref={menuRef}
       className="fixed z-50 bg-white dark:bg-gray-800 rounded-lg shadow-xl 
                  border border-gray-200 dark:border-gray-700 py-2 min-w-52"
       style={{ left: adjustedPosition.x, top: adjustedPosition.y }}
       onClick={(e) => e.stopPropagation()}
       role="menu"
-      aria-label="Text selection actions"
+      aria-label="Aktionen für die Textauswahl"
     >
       {/* Header with word range */}
       {showWordRange && (
@@ -159,30 +162,4 @@ export function ViewerContextMenu({
       {customActions}
     </div>
   );
-}
-
-/**
- * Hook to manage context menu state.
- */
-export function useContextMenu() {
-  const [menuState, setMenuState] = useState<{
-    position: { x: number; y: number };
-    range: WordRange | null;
-  } | null>(null);
-
-  const showMenu = useCallback((position: { x: number; y: number }, range: WordRange) => {
-    setMenuState({ position, range });
-  }, []);
-
-  const hideMenu = useCallback(() => {
-    setMenuState(null);
-  }, []);
-
-  return {
-    isOpen: menuState !== null,
-    position: menuState?.position ?? { x: 0, y: 0 },
-    range: menuState?.range ?? null,
-    showMenu,
-    hideMenu,
-  };
 }

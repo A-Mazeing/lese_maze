@@ -1,71 +1,95 @@
-import { useRSVP } from '@/hooks/useRSVP';
+import { memo, useCallback, type KeyboardEvent, type MouseEvent } from 'react';
+import { useReaderDispatch, useReaderSelector } from '@/contexts/ReaderContext';
+import { getEffectiveEnd } from '@/contexts/readerReducer';
 import { estimateReadingTime } from '@/utils/textProcessor';
 
+/** Schrittweite der Tastatursteuerung des Fortschrittsbalkens (Wörter). */
+const KEY_STEP = 10;
+
 /**
- * Progress Bar Komponente mit Fortschrittsanzeige.
- * 
- * Zeigt den Fortschritt innerhalb des aktuellen Lesebereichs an.
- * Wenn ein Lesebereich (startIndex/endIndex) gesetzt ist, werden
- * alle Anzeigen relativ zu diesem Bereich berechnet.
+ * Fortschrittsanzeige für den aktuellen Lesebereich (startIndex … endIndex).
+ * Per Klick oder Tastatur (←/→, Pos1/Ende am fokussierten Balken) navigierbar.
  */
-export function ProgressBar() {
-  const { 
-    progress, 
-    wpm, 
-    setIndex,
-    startIndex,
-    totalWordsInRange,
-    positionInRange,
-  } = useRSVP();
+export const ProgressBar = memo(function ProgressBar() {
+  const dispatch = useReaderDispatch();
+  const currentIndex = useReaderSelector((s) => s.currentIndex);
+  const startIndex = useReaderSelector((s) => s.startIndex);
+  const wpm = useReaderSelector((s) => s.wpm);
+  const progress = useReaderSelector((s) => s.progress);
+  const end = useReaderSelector((s) => getEffectiveEnd(s));
 
-  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const percentage = x / rect.width;
-    // Berechne den absoluten Index innerhalb des Lesebereichs
-    const relativeIndex = Math.floor(percentage * totalWordsInRange);
-    const newIndex = startIndex + relativeIndex;
-    setIndex(newIndex);
-  };
+  const totalWordsInRange = Math.max(0, end - startIndex + 1);
+  const positionInRange = totalWordsInRange === 0 ? 0 : Math.max(0, currentIndex - startIndex + 1);
 
-  // Verbleibende Wörter im Lesebereich
-  const remainingWords = totalWordsInRange - positionInRange;
-  const remainingTime = estimateReadingTime(remainingWords, wpm);
+  const handleClick = useCallback(
+    (e: MouseEvent<HTMLDivElement>) => {
+      if (totalWordsInRange === 0) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const fraction = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+      dispatch({
+        type: 'SET_INDEX',
+        payload: startIndex + Math.min(totalWordsInRange - 1, Math.floor(fraction * totalWordsInRange)),
+      });
+    },
+    [dispatch, startIndex, totalWordsInRange],
+  );
 
-  // Prozentanzeige basierend auf dem Lesebereich
-  const progressPercent = totalWordsInRange > 0 
-    ? Math.round((positionInRange / totalWordsInRange) * 100) 
-    : 0;
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLDivElement>) => {
+      switch (e.key) {
+        case 'ArrowRight':
+          dispatch({ type: 'SKIP_FORWARD', payload: KEY_STEP });
+          break;
+        case 'ArrowLeft':
+          dispatch({ type: 'SKIP_BACKWARD', payload: KEY_STEP });
+          break;
+        case 'Home':
+          dispatch({ type: 'SET_INDEX', payload: startIndex });
+          break;
+        case 'End':
+          dispatch({ type: 'SET_INDEX', payload: end });
+          break;
+        default:
+          return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+    },
+    [dispatch, startIndex, end],
+  );
+
+  const remainingWords = Math.max(0, totalWordsInRange - positionInRange);
+  const progressPercent = totalWordsInRange > 0 ? Math.round((positionInRange / totalWordsInRange) * 100) : 0;
 
   return (
     <div className="w-full max-w-2xl">
-      {/* Progress Bar */}
       <div
-        className="relative h-3 bg-gray-200 dark:bg-gray-700 rounded-full cursor-pointer overflow-hidden"
+        className="relative h-3 bg-gray-200 dark:bg-gray-700 rounded-full cursor-pointer overflow-hidden
+                   focus-visible:outline-2 focus-visible:outline-blue-500"
         onClick={handleClick}
-        role="progressbar"
-        aria-valuenow={progress}
-        aria-valuemin={0}
-        aria-valuemax={100}
+        onKeyDown={handleKeyDown}
+        role="slider"
+        tabIndex={0}
+        aria-label="Lesefortschritt"
+        aria-valuemin={1}
+        aria-valuemax={Math.max(1, totalWordsInRange)}
+        aria-valuenow={Math.max(1, positionInRange)}
+        aria-valuetext={`Wort ${positionInRange} von ${totalWordsInRange}`}
       >
         <div
-          className="absolute top-0 left-0 h-full bg-blue-500 dark:bg-blue-400 rounded-full transition-all duration-100"
+          className="absolute top-0 left-0 h-full bg-blue-500 dark:bg-blue-400 rounded-full"
           style={{ width: `${progress}%` }}
         />
       </div>
 
-      {/* Info Row */}
       <div className="flex justify-between mt-2 text-sm text-gray-600 dark:text-gray-400">
         <span>
-          Wort {positionInRange} von {totalWordsInRange}
+          Wort {positionInRange.toLocaleString('de-DE')} von {totalWordsInRange.toLocaleString('de-DE')}
         </span>
-        <span className="font-medium">
-          {progressPercent}%
-        </span>
-        <span>
-          Verbleibend: {remainingTime}
-        </span>
+        <span className="font-medium">{progressPercent}%</span>
+        <span>Verbleibend: {estimateReadingTime(remainingWords, wpm)}</span>
       </div>
     </div>
   );
-}
+});
